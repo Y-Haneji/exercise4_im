@@ -131,6 +131,7 @@ if __name__ == '__main__':
   history = model.train(train_x, train_y)
   model.load_best(history)
   model.save_model('0001')
+  # model.load_model('0001')
 
   test_x = mnist.download_and_parse_mnist_file('t10k-images-idx3-ubyte.gz')
   test_y = mnist.download_and_parse_mnist_file('t10k-labels-idx1-ubyte.gz')
