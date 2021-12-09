@@ -6,6 +6,7 @@ import math
 import mnist
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
+from logger import Logger
 
 random.seed(71)
 
@@ -150,17 +151,21 @@ class Model():
 
 
 if __name__ == '__main__': 
+  logger = Logger()
   train_x = mnist.download_and_parse_mnist_file('train-images-idx3-ubyte.gz')
   train_y = mnist.download_and_parse_mnist_file("train-labels-idx1-ubyte.gz")
-  model = Model(mode = 'train', dropout=0.1)
+  model = Model(mode ='train', dropout=0.1)
   history = model.train(train_x, train_y)
   model.load_best(history)
-  model.save_model('0002')
+  # model.save_model('0002')
   # model.load_model('0001')
 
   test_x = mnist.download_and_parse_mnist_file('t10k-images-idx3-ubyte.gz')
   test_y = mnist.download_and_parse_mnist_file('t10k-labels-idx1-ubyte.gz')
   pred_y = model.predict(test_x)
   print(pred_y)
-  print(model.accuracy(test_y, pred_y))
-  print(accuracy_score(test_y, pred_y))
+
+  print('message about this run.')
+  logger.info(input())
+  logger.info(f'best entropy for train is {min(history, key=lambda p: p[1])[1]}.')
+  logger.info(f'accuracy score for test is {model.accuracy(test_y, pred_y)}')
