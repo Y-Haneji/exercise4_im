@@ -151,13 +151,15 @@ class Model():
 
 
 if __name__ == '__main__': 
+  print('please input model name. (ex: 0001)')
+  run_name = input()
   logger = Logger()
   train_x = mnist.download_and_parse_mnist_file('train-images-idx3-ubyte.gz')
   train_y = mnist.download_and_parse_mnist_file("train-labels-idx1-ubyte.gz")
   model = Model(mode ='train', dropout=0.1)
   history = model.train(train_x, train_y)
   model.load_best(history)
-  # model.save_model('0002')
+  model.save_model(run_name)
   # model.load_model('0001')
 
   test_x = mnist.download_and_parse_mnist_file('t10k-images-idx3-ubyte.gz')
@@ -165,7 +167,9 @@ if __name__ == '__main__':
   pred_y = model.predict(test_x)
   print(pred_y)
 
-  print('message about this run.')
+  print('please input log message about this run.')
   logger.info(input())
+  logger.info(f'this model is {run_name}')
   logger.info(f'best entropy for train is {min(history, key=lambda p: p[1])[1]}.')
   logger.info(f'accuracy score for test is {model.accuracy(test_y, pred_y)}')
+  logger.info('')
