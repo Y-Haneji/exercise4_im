@@ -17,6 +17,10 @@ class Model():
     self.batch_size = 100
     self.w1, self.b1 = random.normal(loc=0, scale=np.sqrt(1/784), size=784*self.units).reshape(self.units, 784), random.normal(loc=0, scale=np.sqrt(1/784), size=self.units)
     self.w2, self.b2 = random.normal(loc=0, scale=np.sqrt(1/self.units), size=self.units*10).reshape(10, self.units), random.normal(loc=0, scale=np.sqrt(1/self.units), size=10)
+    self.filter_num = 8
+    self.filter_x = 3
+    self.filter_y = 3
+    self.filter, self.filter_bias = random.normal(loc=0, scale=np.sqrt(1/784), size=self.filter_num*self.filter_y*self.filter_x).reshape(self.filter_num, self.filter_y*self.filter_x), random.normal(loc=0, scale=np.sqrt(1/784), size=self.filter_num)
     if mode not in ['train', 'inference']:
       raise ValueError('mode is train or inference.')
     self.mode = mode
@@ -32,7 +36,7 @@ class Model():
     return tr_x, tr_y # tr_x is (bs, 28, 28) tr_y is one-hot-encoding (bs, 10)
 
   def input_layer(self, im):
-    return im.reshape((self.batch_size, 784)).T
+    return im  # (bs, 28, 28)
 
   def dense_layer(self, input_vec, weight, bias): # ミニバッチに対応
     return weight@input_vec+bias.reshape(-1, 1)
@@ -66,6 +70,27 @@ class Model():
   def softmax(self, input_vec): # ミニバッチに対応
     return np.exp(input_vec-np.max(input_vec, axis=0)) / (np.sum(np.exp(input_vec-np.max(input_vec, axis=0)), axis=0))
 
+  def convolutional_layer(self, input_mat):
+    batch_size = input_mat.size[0]
+    output_x = input_mat.size[1]-self.filter_x+1
+    output_y = input_mat.size[2]-self.filter_y+1
+    pad_wid = ((0, 0), (math.floor(self.filter_y/2), math.floor(self.filter_y/2)), (math.floor(self.filter_x/2), math.floor(self.filter_x/2)))
+    pad_mat = np.pad(input_mat, pad_wid)
+    mat = np.empty((batch_size, self.filter_y, self.filter_x, output_y, output_x))  # (batch size, filter height, filter width, output height, output width)
+    for h in range(self.filter_y):
+      for w in range(self.filter_x):
+        mat[:, h, w, :, :] = pad_mat[:, h : h+output_y, w : w+output_x]
+    mat = mat.transpose(1, 2, 0, 3, 4).reshape(self.filter_x*self.fitler_y, batch_size*output_x*output_y)
+    return self.filter@mat+self.filter_bias.reshape(-1,1), mat
+
+  def col2im(self, mat):
+    mat.reshape(self.filter_y, self.filter_x, self.batch_size, 28-self.filter_y+1, 28-self.filter_x+1).transpose(2, 0, 1, 4, 5)
+    im = np.empty((self.batch_size, 28, 28))
+    for h in range(self.filter_y):
+      for w in range(self.filter_x):
+        im[:, h : h+28-self.filter_y+1, w : w+28-self.filter_y+1] = mat[:, h, w, :, :]
+    return im
+
   def postprocessing(self, input_vec): # ミニバッチに対応
     return np.argmax(input_vec, axis=0)
 
@@ -79,9 +104,11 @@ class Model():
 
   def train_batch(self, tr_x, tr_y, lr):
     x = self.input_layer(tr_x)
-    t = self.dense_layer1(x)
+    # t = self.dense_layer1(x)
+    t, mat = self.convolutional_layer(x)
     y = self.sigmoid(t)
-    y_dash, alived = self.dropout(y)
+    # y_dash, alived = self.dropout(y)
+    y_dash = y.reshape(self.filter_y*self.filter_x, self.batch_size, (28-self.filter_y+1)*(28-self.filter_x+1)).transpose(0,2,1).reshape(self.filter_y*self.filter_x*(28-self.filter_y+1)*(28-self.filter_x+1), self.batch_size)  # 全結合層に入れるために1次元配列をbs列並べた形に変形
     a = self.dense_layer2(y_dash)
     y2 = self.softmax(a)
     e_n = self.cross_entropy(tr_y.T, y2)
@@ -91,19 +118,23 @@ class Model():
     diff_e_n_with_y_dash = self.w2.T @ diff_e_n_with_a # units*bs
     diff_e_n_with_w2 = diff_e_n_with_a @ y_dash.T # クラス数*units
     diff_e_n_with_b2 = np.sum(diff_e_n_with_a, axis=1) # クラス数次元ベクトル
-    diff_e_n_with_y = diff_e_n_with_y_dash * alived
+    # diff_e_n_with_y = diff_e_n_with_y_dash * alived  # ドロップアウト層の逆伝搬
+    diff_e_n_with_y = diff_e_n_with_y_dash.reshape(self.filter_y*self.filter_x, (28-self.filter_y+1)*(28-self.filter_x+1), self.batch_size).transpose(0,2,1).reshape(self.filter_x*self.fitler_y, self.batch_size*(28-self.filter_x+1)*(28-self.filter_y+1))  # 全結合層から畳み込み層の形に変形
     diff_e_n_with_t = diff_e_n_with_y*(1-y)*y # units*bs
-    diff_e_n_with_x = self.w1.T @ diff_e_n_with_t # 784*bs
-    diff_e_n_with_w1 = diff_e_n_with_t @ x.T # units*784
-    diff_e_n_with_b1 = np.sum(diff_e_n_with_t, axis=1) # units数次元ベクトル
+    # diff_e_n_with_x = self.col2im(self.w1.T @ diff_e_n_with_t, self.w1, self.b1, (28, 28), (28-self.w1.size[1]+1, 28-self.w1.size[0]+1), self.batch_size) # 784*bs
+    # diff_e_n_with_w1 = diff_e_n_with_t @ mat.T # units*784
+    # diff_e_n_with_b1 = np.sum(diff_e_n_with_t, axis=1) # units数次元ベクトル
+    diff_e_n_with_x = self.col2im(self.w1.T @ diff_e_n_with_t, self.w1, self.b1, (28, 28), (28-self.w1.size[1]+1, 28-self.w1.size[0]+1), self.batch_size) # 784*bs
+    diff_e_n_with_filter = diff_e_n_with_t @ mat.T # units*784
+    diff_e_n_with_filter_bias = np.sum(diff_e_n_with_t, axis=1) # units数次元ベクトル
 
     # 重みの更新
-    self.w1 = self.w1 - lr*diff_e_n_with_w1
-    self.b1 = self.b1 - lr*diff_e_n_with_b1
     self.w2 = self.w2 - lr*diff_e_n_with_w2
     self.b2 = self.b2 - lr*diff_e_n_with_b2
+    self.filter = self.filter - lr*diff_e_n_with_filter
+    self.filter_bias = self.filter_bias - lr*diff_e_n_with_filter_bias
 
-    return (self.w1, self.b1, self.w2, self.b2), e_n
+    return (self.w1, self.b1, self.w2, self.b2, self.filter, self.filter_bias), e_n
   
   def train(self, train_x, train_y, epochs: int = 10, lr: float = 0.01):
     '''
@@ -140,14 +171,14 @@ class Model():
     return pred_y
 
   def load_best(self, history):
-    self.w1, self.b1, self.w2, self.b2 = min(history, key=lambda p: p[1])[0]
+    self.w1, self.b1, self.w2, self.b2, self.filter, self.filter_bias = min(history, key=lambda p: p[1])[0]
 
   def save_model(self, name):
-    np.savez(f'model/{name}', w1=self.w1, b1=self.b1, w2=self.w2, b2=self.b2)
+    np.savez(f'model/{name}', w1=self.w1, b1=self.b1, w2=self.w2, b2=self.b2, filter=self.filter, filter_bias=self.filter_bias)
 
   def load_model(self, name):
     model = np.load(f'model/{name}.npz')
-    self.w1, self.b1, self.w2, self.b2 = model['w1'], model['b1'], model['w2'], model['b2']
+    self.w1, self.b1, self.w2, self.b2, self.filter, self.filter_bias = model['w1'], model['b1'], model['w2'], model['b2'], model['filter'], model['filter_bias']
 
 
 if __name__ == '__main__': 
