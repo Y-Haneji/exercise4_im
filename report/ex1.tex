@@ -1,0 +1,177 @@
+\documentclass[platex,dvipdfmx]{jsarticle}
+\usepackage{color}
+\usepackage{listings,jvlisting}
+\lstset{
+  language=Python,
+  basicstyle={\ttfamily},
+  identifierstyle={\small},
+  commentstyle={\smallitshape},
+  keywordstyle={\small\bfseries\color{red}},
+  ndkeywordstyle={\small},
+  stringstyle={\small\ttfamily\color{yellow}},
+  frame={tb},
+  breaklines=true,
+  columns=[l]{fullflexible},
+  numbers=left,
+  xrightmargin=0zw,
+  xleftmargin=3zw,
+  numberstyle={\scriptsize},
+  stepnumber=1,
+  numbersep=1zw,
+  lineskip=-0.5ex
+}
+\renewcommand{\lstlistingname}{ソースコード}
+\begin{document}
+  \title{課題1レポート}
+  \author{羽路 悠斗}
+  \maketitle
+
+  \section{課題内容}
+
+  \subsection{3層ニューラルネットワークの構築}
+
+  MNIST の画像1枚を入力とし、3層ニューラルネットワークを用いて、0~9 の値のうち1つを出力するプログラムを作成せよ。
+
+  \begin{itemize}
+    \item キーボードから0~9999の整数を入力iとして受け取り、0~9の整数を標準出力に出力すること。
+    \item MNISTのテストデータ10000枚の画像のうちi番目の画像を入力画像として用いる。
+    \item MNIST の画像サイズ(28 × 28)、画像枚数(10000 枚)、クラス数(C = 10)は既知とする。ただし、後々の改良のため変更可能な仕様にしておくことを薦める。
+    \item 中間層のノード数 M は自由に決めて良い。
+    \item 重み$W^{(1)},W^{(2)},b^{(1)},b^{(2)}$ については乱数で決定すること。ここでは、手前の層のノード数をNとして1/Nを分散とする平均0の正規分布で与えることとする。適切な重みを設定しないため、課題1の段階では入力に対してデタラメな認識結果を返す。ただし、実行する度に同じ結果を出力するよう乱数のシードを固定すること。
+  \end{itemize}
+
+  \section{作成したプログラムの説明}
+
+  \subsection{設計方針}
+
+  それぞれの層を関数として実装する。それらを最後にまとめることでニューラルネットとする。これによりプログラムの可読性が上がり、また後の拡張や再利用も容易になる。
+
+  各層の入力と出力のインターフェースを統一する。具体的にはi番目の層のノード数を$n_i$とすると、入力は$n_{i-1}$行$1$列のarrayで、出力は$n_i$行$1$列のarrayとする。
+
+  \subsection{パラメータ}
+
+  パラメータとしては、中間層の数と各層の重みとバイアスがある。中間層は32層、重みとバイアスは乱数で決定する。
+
+  \begin{lstlisting}[caption=ex1.py, label=paramater]
+    random.seed(71)
+    units = 32
+    w1, b1 = random.normal(loc=0, scale=np.sqrt(1/784), size=784*units).reshape(units, 784), random.normal(loc=0, scale=np.sqrt(1/784), size=units)
+    w2, b2 = random.normal(loc=0, scale=np.sqrt(1/units), size=units*10).reshape(10, units), random.normal(loc=0, scale=np.sqrt(1/units), size=10)
+  \end{lstlisting}
+
+  \subsection{前処理}
+
+  標準入力から受け取った整数をインデックスとして、MNIST手描き文字画像を取り出す。
+
+  \begin{lstlisting}[caption=ex1.py, label=preprocessing]
+    def preprocessing(input):
+      return mnist.download_and_parse_mnist_file('train-images-idx3-ubyte.gz')[input]
+  \end{lstlisting}
+
+  \subsection{入力層}
+
+  MNISTの画像を$28*28=784$次元のベクトルに変換する。後の行列演算のために784行1列のarrayとして保持する。
+
+  \begin{lstlisting}[caption=ex1.py, label=input_layer]
+    def input_layer(im):
+      return im.flatten().reshape(-1, 1)
+  \end{lstlisting}
+
+  \subsection{全結合層}
+
+  2つの全結合層は、パラメーターは違うが処理は同じなので、まとめてしまう。
+
+  \begin{lstlisting}[caption=ex1.py, label=dense_layer]
+    def dense_layer(input_vec, weight, bias):
+      return weight@input_vec+bias.reshape(-1, 1)
+  \end{lstlisting}
+
+  \subsection{中間層}
+
+  ソースコード\ref{dense_layer}を利用して、中間層への入力を計算する。
+
+  \begin{lstlisting}[caption=ex1.py, label=dense_layer1]
+    def dense_layer1(input_vec):
+      return dense_layer(input_vec, w1, b1)
+  \end{lstlisting}
+
+  次に活性化関数として、シグモイド関数を用いる。
+
+  \begin{lstlisting}[caption=ex1.py, label=sigmoid]
+    def sigmoid(input_vec):
+      return 1/(1+np.exp(-input_vec))
+  \end{lstlisting}
+
+  \subsection{出力層}
+
+  ソースコード\ref{dense_layer}を利用して、出力層への入力を計算する。
+
+  \begin{lstlisting}[caption=ex1.py, label=dense_layer2]
+    def dense_layer2(input_vec):
+      return dense_layer(input_vec, w2, b2)
+  \end{lstlisting}
+
+  次に活性化関数として、ソフトマックス関数を用いる。出力層は、0~9の数に対応する10クラス分類の確率を出力する。
+
+  \begin{lstlisting}[caption=ex1.py, label=softmax]
+    def softmax(input_vec):
+      return np.exp(input_vec-np.max(input_vec, axis=0)) / (np.sum(np.exp(input_vec-np.max(input_vec, axis=0))))
+  \end{lstlisting}
+
+  \subsection{後処理}
+
+  出力層の出力を用いて、尤度最大のクラスを認識結果として出力する。
+
+  \begin{lstlisting}[caption=ex1.py, label=postprocessing]
+    def postprocessing(input_vec):
+      return np.argmax(input_vec)
+  \end{lstlisting}
+
+  \subsection{モデル}
+
+  以上の層を一つにまとめて、0~9999の整数を受け取り、0~9の整数を出力するニューラルネットとする。
+
+  \begin{lstlisting}[caption=ex1.py, label=model]
+    def model(input):
+      return postprocessing(softmax(dense_layer2(sigmoid(dense_layer1(input_layer(preprocessing(input)))))))
+  \end{lstlisting}
+
+  \section{実行結果}
+
+  実際に標準入力から入力を受け取り、モデルの処理結果を標準出力に出力するプログラムの、実行と実行結果は次の通りである。
+
+  \begin{quote}
+    \begin{lstlisting}[caption=ex1.py, label=main]
+      if __name__ == '__main__':  
+        print('input 0 ~ 9999 number')
+        stdin = int(input())
+        print(f'mnist[{stdin}] is ...')
+        stdout = model(stdin)
+        print(stdout)
+    \end{lstlisting}
+  \end{quote}
+
+  実行結果
+
+  \begin{quote}
+    \begin{verbatim}
+      input 0 ~ 9999 number
+      4
+      mnist[4] is ...
+      1
+    \end{verbatim}
+  \end{quote}
+
+  \section{工夫点}
+
+  各層の入力と出力のインターフェースを先に仕様として決めてしまい、仕様に合わせるように実装していった事で、形状の把握が容易である。特に入力層において、平坦化するだけではなく仕様に合わせて形状を変えてから出力したことで、中間層の全結合層の行列演算が明快である。そのまま1次元ベクトルとしていても、numpyの仕様としてキャストしてくれるようだが、明示的に変換しておくほうが良いだろう。
+
+  各層を関数として記述したことで、デバッグも容易である。初めは実行するとエラーが出たが、一つずつ層の入力と出力を確認して解決できた。
+
+  また、for文を一度も使わずに行列演算を駆使したことで、高速化できた。
+
+  \section{問題点}
+
+  特になし。
+
+\end{document}

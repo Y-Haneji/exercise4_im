@@ -37,7 +37,8 @@ def model(input):
   return postprocessing(softmax(dense_layer2(sigmoid(dense_layer1(input_layer(preprocessing(input)))))))
 
 if __name__ == '__main__':  
+  print('input 0 ~ 9999 number')
   stdin = int(input())
+  print(f'mnist[{stdin}] is ...')
   stdout = model(stdin)
-  # stdout = dense_layer1(input_layer(preprocessing(stdin))).shape
   print(stdout)
