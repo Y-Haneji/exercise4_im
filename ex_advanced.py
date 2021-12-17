@@ -15,12 +15,17 @@ class Model():
     # モデルのアーキテクチャを作成
     self.units = 32
     self.batch_size = 100
-    self.w1, self.b1 = random.normal(loc=0, scale=np.sqrt(1/784), size=784*self.units).reshape(self.units, 784), random.normal(loc=0, scale=np.sqrt(1/784), size=self.units)
-    self.w2, self.b2 = random.normal(loc=0, scale=np.sqrt(1/self.units), size=self.units*10).reshape(10, self.units), random.normal(loc=0, scale=np.sqrt(1/self.units), size=10)
-    self.filter_num = 8
+    self.filter_num = 32
     self.filter_x = 3
     self.filter_y = 3
-    self.filter, self.filter_bias = random.normal(loc=0, scale=np.sqrt(1/784), size=self.filter_num*self.filter_y*self.filter_x).reshape(self.filter_num, self.filter_y*self.filter_x), random.normal(loc=0, scale=np.sqrt(1/784), size=self.filter_num)
+    self.pad_x = math.floor(self.filter_x/2)
+    self.pad_y = math.floor(self.filter_y/2)
+    self.output_x = 28-self.filter_x+2*self.pad_x+1
+    self.output_y = 28-self.filter_y+2*self.pad_y+1
+    self.w1, self.b1 = random.normal(loc=0, scale=np.sqrt(1/784), size=784*self.units).reshape(self.units, 784), random.normal(loc=0, scale=np.sqrt(1/784), size=self.units)
+    # self.w2, self.b2 = random.normal(loc=0, scale=np.sqrt(1/self.units), size=self.units*10).reshape(10, self.units), random.normal(loc=0, scale=np.sqrt(1/self.units), size=10)
+    self.w2, self.b2 = random.normal(loc=0, scale=np.sqrt(1/self.filter_num*self.output_y*self.output_x), size=self.filter_num*self.output_y*self.output_x*10).reshape(10, self.filter_num*self.output_y*self.output_x), random.normal(loc=0, scale=np.sqrt(1/self.filter_num*self.output_y*self.output_x), size=10)
+    self.filter, self.filter_bias = random.randn(self.filter_num, self.filter_y*self.filter_x), random.randn(self.filter_num)
     if mode not in ['train', 'inference']:
       raise ValueError('mode is train or inference.')
     self.mode = mode
@@ -70,26 +75,29 @@ class Model():
   def softmax(self, input_vec): # ミニバッチに対応
     return np.exp(input_vec-np.max(input_vec, axis=0)) / (np.sum(np.exp(input_vec-np.max(input_vec, axis=0)), axis=0))
 
-  def convolutional_layer(self, input_mat):
-    batch_size = input_mat.size[0]
-    output_x = input_mat.size[1]-self.filter_x+1
-    output_y = input_mat.size[2]-self.filter_y+1
-    pad_wid = ((0, 0), (math.floor(self.filter_y/2), math.floor(self.filter_y/2)), (math.floor(self.filter_x/2), math.floor(self.filter_x/2)))
-    pad_mat = np.pad(input_mat, pad_wid)
-    mat = np.empty((batch_size, self.filter_y, self.filter_x, output_y, output_x))  # (batch size, filter height, filter width, output height, output width)
+  def im2col(self, input_im):
+    pad_wid = ((0, 0), (self.pad_y, self.pad_y), (self.pad_x, self.pad_x))
+    pad_im = np.pad(input_im, pad_wid)
+    col = np.empty((self.batch_size, self.filter_y, self.filter_x, self.output_y, self.output_x))  # (batch size, filter height, filter width, output height, output width)
     for h in range(self.filter_y):
       for w in range(self.filter_x):
-        mat[:, h, w, :, :] = pad_mat[:, h : h+output_y, w : w+output_x]
-    mat = mat.transpose(1, 2, 0, 3, 4).reshape(self.filter_x*self.fitler_y, batch_size*output_x*output_y)
-    return self.filter@mat+self.filter_bias.reshape(-1,1), mat
+        col[:, h, w, :, :] = pad_im[:, h : h+self.output_y, w : w+self.output_x]
+    col = col.transpose(1, 2, 0, 3, 4).reshape(self.filter_x*self.filter_y, self.batch_size*self.output_x*self.output_y)
+    return col
 
-  def col2im(self, mat):
-    mat.reshape(self.filter_y, self.filter_x, self.batch_size, 28-self.filter_y+1, 28-self.filter_x+1).transpose(2, 0, 1, 4, 5)
-    im = np.empty((self.batch_size, 28, 28))
+  def col2im(self, col):
+    col = col.reshape(self.filter_y, self.filter_x, self.batch_size, self.output_y, self.output_x).transpose(2, 0, 1, 3, 4)
+    im = np.zeros((self.batch_size, 28+2*self.pad_y, 28+2*self.pad_x))
     for h in range(self.filter_y):
       for w in range(self.filter_x):
-        im[:, h : h+28-self.filter_y+1, w : w+28-self.filter_y+1] = mat[:, h, w, :, :]
+        im[:, h : h+self.output_y, w : w+self.output_x] += col[:, h, w, :, :]
     return im
+
+  def col2vec(self, col):
+    return col.reshape(self.filter_num, self.batch_size, self.output_y*self.output_x).transpose(0,2,1).reshape(self.filter_num*self.output_y*self.output_x, self.batch_size)
+
+  def convolutional_layer(self, input_mat):
+    return self.filter@input_mat+self.filter_bias.reshape(-1,1)
 
   def postprocessing(self, input_vec): # ミニバッチに対応
     return np.argmax(input_vec, axis=0)
@@ -105,10 +113,11 @@ class Model():
   def train_batch(self, tr_x, tr_y, lr):
     x = self.input_layer(tr_x)
     # t = self.dense_layer1(x)
-    t, mat = self.convolutional_layer(x)
+    col = self.im2col(x)
+    t = self.convolutional_layer(col)
     y = self.sigmoid(t)
     # y_dash, alived = self.dropout(y)
-    y_dash = y.reshape(self.filter_y*self.filter_x, self.batch_size, (28-self.filter_y+1)*(28-self.filter_x+1)).transpose(0,2,1).reshape(self.filter_y*self.filter_x*(28-self.filter_y+1)*(28-self.filter_x+1), self.batch_size)  # 全結合層に入れるために1次元配列をbs列並べた形に変形
+    y_dash = self.col2vec(y)  # 全結合層に入れるために1次元配列をbs列並べた形に変形
     a = self.dense_layer2(y_dash)
     y2 = self.softmax(a)
     e_n = self.cross_entropy(tr_y.T, y2)
@@ -119,18 +128,18 @@ class Model():
     diff_e_n_with_w2 = diff_e_n_with_a @ y_dash.T # クラス数*units
     diff_e_n_with_b2 = np.sum(diff_e_n_with_a, axis=1) # クラス数次元ベクトル
     # diff_e_n_with_y = diff_e_n_with_y_dash * alived  # ドロップアウト層の逆伝搬
-    diff_e_n_with_y = diff_e_n_with_y_dash.reshape(self.filter_y*self.filter_x, (28-self.filter_y+1)*(28-self.filter_x+1), self.batch_size).transpose(0,2,1).reshape(self.filter_x*self.fitler_y, self.batch_size*(28-self.filter_x+1)*(28-self.filter_y+1))  # 全結合層から畳み込み層の形に変形
-    diff_e_n_with_t = diff_e_n_with_y*(1-y)*y # units*bs
-    # diff_e_n_with_x = self.col2im(self.w1.T @ diff_e_n_with_t, self.w1, self.b1, (28, 28), (28-self.w1.size[1]+1, 28-self.w1.size[0]+1), self.batch_size) # 784*bs
-    # diff_e_n_with_w1 = diff_e_n_with_t @ mat.T # units*784
+    diff_e_n_with_y = diff_e_n_with_y_dash.reshape(self.filter_num, self.output_y*self.output_x, self.batch_size).transpose(0,2,1).reshape(self.filter_num, self.batch_size*self.output_x*self.output_y)  # 全結合層から畳み込み層の形に変形
+    diff_e_n_with_t = diff_e_n_with_y*(1-y)*y # 
+    # diff_e_n_with_x = self.w1.T @ diff_e_n_with_t # 784*bs
+    # diff_e_n_with_w1 = diff_e_n_with_t @ x.T # units*784
     # diff_e_n_with_b1 = np.sum(diff_e_n_with_t, axis=1) # units数次元ベクトル
-    diff_e_n_with_x = self.col2im(self.w1.T @ diff_e_n_with_t, self.w1, self.b1, (28, 28), (28-self.w1.size[1]+1, 28-self.w1.size[0]+1), self.batch_size) # 784*bs
-    diff_e_n_with_filter = diff_e_n_with_t @ mat.T # units*784
-    diff_e_n_with_filter_bias = np.sum(diff_e_n_with_t, axis=1) # units数次元ベクトル
+    diff_e_n_with_x = self.col2im(self.filter.T @ diff_e_n_with_t) # 
+    diff_e_n_with_filter = diff_e_n_with_t @ col.T # 
+    diff_e_n_with_filter_bias = np.sum(diff_e_n_with_t, axis=1) # 
 
     # 重みの更新
-    self.w2 = self.w2 - lr*diff_e_n_with_w2
-    self.b2 = self.b2 - lr*diff_e_n_with_b2
+    # self.w2 = self.w2 - lr*diff_e_n_with_w2
+    # self.b2 = self.b2 - lr*diff_e_n_with_b2
     self.filter = self.filter - lr*diff_e_n_with_filter
     self.filter_bias = self.filter_bias - lr*diff_e_n_with_filter_bias
 
@@ -156,17 +165,8 @@ class Model():
   def predict(self, test_x):
     self.mode = 'inference'
     self.batch_size = 1 # 推論時はバッチ処理を行わない
-    pred_y = [self.postprocessing(self.softmax(self.dense_layer2(self.dropout(self.sigmoid(self.dense_layer1(self.input_layer(np.expand_dims(test_i, axis=0)))))))) for test_i in (test_x)]
-    # pred_y = []
-    # for test_i in tqdm(test_x):
-    #   x = self.input_layer(np.expand_dims(test_i, axis=0)) # バッチサイズ1のミニバッチを作成
-    #   t = self.dense_layer1(x)
-    #   y = self.sigmoid(t)
-    #   a = self.dense_layer2(y)
-    #   y2 = self.softmax(a)
-    #   pred_y_i = self.postprocessing(y2)
-    #   print(pred_y_i)
-    #   pred_y.append(pred_y_i)
+    # pred_y = [self.postprocessing(self.softmax(self.dense_layer2(self.dropout(self.sigmoid(self.dense_layer1(self.input_layer(np.expand_dims(test_i, axis=0)))))))) for test_i in (test_x)]
+    pred_y = [self.postprocessing(self.softmax(self.dense_layer2(self.col2vec(self.sigmoid(self.convolutional_layer(self.im2col(self.input_layer(np.expand_dims(test_i, axis=0))))))))) for test_i in (test_x)]
     pred_y = np.array(pred_y).flatten()
     return pred_y
 
@@ -188,7 +188,7 @@ if __name__ == '__main__':
   train_x = mnist.download_and_parse_mnist_file('train-images-idx3-ubyte.gz')
   train_y = mnist.download_and_parse_mnist_file("train-labels-idx1-ubyte.gz")
   model = Model(mode ='train', dropout=0.1)
-  history = model.train(train_x, train_y)
+  history = model.train(train_x, train_y, epochs=50, lr=0.1)
   model.load_best(history)
   model.save_model(run_name)
   # model.load_model('0001')
