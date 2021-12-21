@@ -16,16 +16,18 @@ class Model():
     self.units = 32
     self.batch_size = 100
     self.filter_num = 32
-    self.filter_x = 3
-    self.filter_y = 3
-    self.pad_x = math.floor(self.filter_x/2)
-    self.pad_y = math.floor(self.filter_y/2)
-    self.output_x = 28-self.filter_x+2*self.pad_x+1
-    self.output_y = 28-self.filter_y+2*self.pad_y+1
+    self.filter_w = 3
+    self.filter_h = 3
+    self.pad_w = math.floor(self.filter_w/2)
+    self.pad_h = math.floor(self.filter_h/2)
+    self.im_w = 28
+    self.im_h = 28
+    self.output_x = self.im_w-self.filter_w+2*self.pad_w+1
+    self.output_y = self.im_h-self.filter_h+2*self.pad_h+1
     self.w1, self.b1 = random.normal(loc=0, scale=np.sqrt(1/784), size=784*self.units).reshape(self.units, 784), random.normal(loc=0, scale=np.sqrt(1/784), size=self.units)
     # self.w2, self.b2 = random.normal(loc=0, scale=np.sqrt(1/self.units), size=self.units*10).reshape(10, self.units), random.normal(loc=0, scale=np.sqrt(1/self.units), size=10)
     self.w2, self.b2 = random.normal(loc=0, scale=np.sqrt(1/self.filter_num*self.output_y*self.output_x), size=self.filter_num*self.output_y*self.output_x*10).reshape(10, self.filter_num*self.output_y*self.output_x), random.normal(loc=0, scale=np.sqrt(1/self.filter_num*self.output_y*self.output_x), size=10)
-    self.filter, self.filter_bias = random.randn(self.filter_num, self.filter_y*self.filter_x), random.randn(self.filter_num)
+    self.filter, self.filter_bias = random.randn(self.filter_num, self.filter_h*self.filter_w), random.randn(self.filter_num)
     if mode not in ['train', 'inference']:
       raise ValueError('mode is train or inference.')
     self.mode = mode
@@ -76,20 +78,20 @@ class Model():
     return np.exp(input_vec-np.max(input_vec, axis=0)) / (np.sum(np.exp(input_vec-np.max(input_vec, axis=0)), axis=0))
 
   def im2col(self, input_im):
-    pad_wid = ((0, 0), (self.pad_y, self.pad_y), (self.pad_x, self.pad_x))
+    pad_wid = ((0, 0), (self.pad_h, self.pad_h), (self.pad_w, self.pad_w))
     pad_im = np.pad(input_im, pad_wid)
-    col = np.empty((self.batch_size, self.filter_y, self.filter_x, self.output_y, self.output_x))  # (batch size, filter height, filter width, output height, output width)
-    for h in range(self.filter_y):
-      for w in range(self.filter_x):
+    col = np.empty((self.batch_size, self.filter_h, self.filter_w, self.output_y, self.output_x))  # (batch size, filter height, filter width, output height, output width)
+    for h in range(self.filter_h):
+      for w in range(self.filter_w):
         col[:, h, w, :, :] = pad_im[:, h : h+self.output_y, w : w+self.output_x]
-    col = col.transpose(1, 2, 0, 3, 4).reshape(self.filter_x*self.filter_y, self.batch_size*self.output_x*self.output_y)
+    col = col.transpose(1, 2, 0, 3, 4).reshape(self.filter_w*self.filter_h, self.batch_size*self.output_x*self.output_y)
     return col
 
   def col2im(self, col):
-    col = col.reshape(self.filter_y, self.filter_x, self.batch_size, self.output_y, self.output_x).transpose(2, 0, 1, 3, 4)
-    im = np.zeros((self.batch_size, 28+2*self.pad_y, 28+2*self.pad_x))
-    for h in range(self.filter_y):
-      for w in range(self.filter_x):
+    col = col.reshape(self.filter_h, self.filter_w, self.batch_size, self.output_y, self.output_x).transpose(2, 0, 1, 3, 4)
+    im = np.zeros((self.batch_size, self.im_h+2*self.pad_h, self.im_w+2*self.pad_w))
+    for h in range(self.filter_h):
+      for w in range(self.filter_w):
         im[:, h : h+self.output_y, w : w+self.output_x] += col[:, h, w, :, :]
     return im
 
