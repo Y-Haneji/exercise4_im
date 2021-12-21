@@ -52,4 +52,4 @@ def model():
 
 if __name__ == '__main__': 
   stdout = model()
-  print(stdout)
+  print(f'cross entropy of a batch is {stdout}')

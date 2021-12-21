@@ -1,0 +1,131 @@
+\documentclass[platex,dvipdfmx]{jsarticle}
+\usepackage{color}
+\usepackage{listings,jvlisting}
+\lstset{
+  language=Python,
+  basicstyle={\ttfamily},
+  identifierstyle={\small},
+  commentstyle={\small\itshape},
+  keywordstyle={\small\bfseries\color{red}},
+  ndkeywordstyle={\small},
+  stringstyle={\small\ttfamily\color{yellow}},
+  frame={tb},
+  breaklines=true,
+  columns=[l]{fullflexible},
+  numbers=left,
+  xrightmargin=0zw,
+  xleftmargin=3zw,
+  numberstyle={\scriptsize},
+  stepnumber=1,
+  numbersep=1zw,
+  lineskip=-0.5ex
+}
+\renewcommand{\lstlistingname}{ソースコード}
+\begin{document}
+  \title{課題2レポート}
+  \author{羽路 悠斗}
+  \maketitle
+
+  \section{課題内容}
+
+  \subsection{ミニバッチ対応}
+
+  課題1のコードをベースにミニバッチを入力可能とするように改良せよ。
+
+  \begin{itemize}
+    \item MNISTの学習画像60000枚の中からランダムにB枚をミニバッチとして取り出すこと。
+    \item バッチサイズBは自由に決めて良い(100程度がちょうど良い)。
+    \item ミニバッチを取り出す処理はランダムに行う。
+  \end{itemize}
+
+  \subsection{クロスエントロピー誤差の計算}
+
+  クロスエントロピー誤差を計算するプログラムを作成せよ。
+
+  \begin{itemize}
+    \item クロスエントロピー誤差の平均を標準出力に出力すること。
+  \end{itemize}
+
+  \section{作成したプログラムの説明}
+
+  \subsection{ミニバッチ対応}
+
+  \subsubsection{設計方針}
+  
+  各層の入力と出力のインターフェースを、axis=-1をバッチサイズとして拡張する。すなわち、行列の各列が1画像を表す。
+
+  \subsubsection{パラメータ}
+
+  パラメータとして、バッチサイズを追加する。重みとバイアスは、バッチ内の全ての画像に同じ値を利用するので構造の変更はない。
+
+  \subsubsection{前処理}
+
+  ミニバッチとして取り出す画像を決める。(バッチサイズ、高さ、幅)の形で画像を、（バッチサイズ、クラス数）の形でone-hot vector 表記でラベルを取り出す。
+
+  \begin{lstlisting}[caption=ex2.py, label=preprocessing]
+    def preprocessing():
+      idx = random.randint(0, len(train_y), batch_size)
+      tr_x = train_x[idx]
+      l = [[1 if i == label else 0 for i in range(10)] for label in train_y[idx]]
+      tr_y = np.zeros((len(l), len(l[0])))
+      tr_y[:] = l
+      return tr_x, tr_y # tr_x is (bs, 28, 28) tr_y is one-hot-encoding (bs, 10)
+  \end{lstlisting}
+
+  \subsection{クロスエントロピー誤差の計算}
+
+  \subsubsection{設計方針}
+  
+  出力層の出力はインターフェースに従って、(クラス数、バッチサイズ)の形でone-hot vector 表記で与えられる。定義に従い、クラスとバッチに沿って加算すれば良い。
+
+  \subsubsection{クロスエントロピー誤差}
+
+  クロスエントロピー誤差は次の式で計算される。
+
+  \[
+    E_n = \frac{1}{B} \sum_{i \in ミニバッチ} \sum_{k=1}^{C} -y_{i,k} \log y_{i,k}^{(2)}
+  \]
+
+  これをコードにすると次のようになる。
+
+  \begin{lstlisting}[caption=ex2.py, label=crossentropy]
+    def cross_entropy(true_vec ,pred_vec):
+      return np.sum(np.sum(-1 * true_vec * np.log(pred_vec), axis=0)) / batch_size
+  \end{lstlisting}
+
+  \section{実行結果}
+
+  実際にミニバッチを取り出して、クロスエントロピー誤差を標準出力に出力するプログラムの、実行と実行結果は次の通りである。
+
+  \begin{quote}
+    \begin{lstlisting}[caption=ex2.py, label=model]
+      def model():
+        tr_x, tr_y = preprocessing()
+        return cross_entropy(tr_y.T, softmax(dense_layer2(sigmoid(dense_layer1(input_layer(tr_x))))))
+    \end{lstlisting}
+
+    \begin{lstlisting}[caption=ex2.py, label=main]
+      if __name__ == '__main__': 
+        stdout = model()
+        print(f'cross entropy of a batch is {stdout}')
+    \end{lstlisting}
+  \end{quote}
+
+  実行結果
+
+  \begin{quote}
+    \begin{verbatim}
+      cross entropy of a batch is 2.6056293937236092
+    \end{verbatim}
+  \end{quote}
+
+  \section{工夫点}
+
+  各層の入力と出力のインターフェースを、課題1のインターフェースのaxis=-1(今回の場合は行列の列となる)にバッチサイズを追加して統一することで、課題1のコードをほぼそのまま利用することができた。また、各層でノードが縦に並んでおり右に伝搬していくという教科書の図と同じイメージが持てるという利点もある。
+
+  課題1と同じく、for文を一度も使わずに行列演算を駆使したことで、高速化できた。
+
+  \section{問題点}
+
+  上でfor文を一度も使わずと述べたが、前処理でのone-hot vector 表記への変換にはリスト内包表記を用いている。numpyをうまく使えば高速化できるかもしれない。
+\end{document}
