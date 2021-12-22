@@ -134,8 +134,8 @@ if __name__ == '__main__':
   logger = Logger()
   train_x = mnist.download_and_parse_mnist_file('train-images-idx3-ubyte.gz')
   train_y = mnist.download_and_parse_mnist_file("train-labels-idx1-ubyte.gz")
-  model = Model(mode ='train', dropout=0.1)
-  history = model.train(train_x, train_y, epochs=50, lr=0.1)
+  model = Model()
+  history = model.train(train_x, train_y)
   model.load_best(history)
   if run_name != '':
     model.save_model(run_name)
