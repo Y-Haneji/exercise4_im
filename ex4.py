@@ -90,9 +90,12 @@ class Model():
     self.batch_size = 100
     history = []
     for i in tqdm(range(epochs)):
+      entropies = []
       for j in range(60000//self.batch_size):
         tr_x, tr_y = self.preprocessing(train_x, train_y)
         model, entropy = self.train_batch(tr_x, tr_y, lr)
+        entropies.append(entropy)
+      entropy = sum(entropies)/len(entropies)
       print(f'Epoch {i+1} end! Cross entroppy is {entropy}.')
       history.append((model,entropy))
     return history
