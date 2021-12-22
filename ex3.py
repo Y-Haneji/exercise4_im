@@ -81,10 +81,11 @@ class Model():
     lr: 学習率
     '''
     for i in tqdm(range(epochs)):
+      entropies = []
       for j in range(60000//self.batch_size):
         tr_x, tr_y = self.preprocessing(train_x, train_y)
-        res = self.train_batch(tr_x, tr_y, lr)
-      print(f'Epoch {i+1} end! Cross entroppy is {res}.')
+        entropies.append(self.train_batch(tr_x, tr_y, lr))
+      print(f'Epoch {i+1} end! Cross entroppy is {sum(entropies)/len(entropies)}.')
 
 
 if __name__ == '__main__': 
