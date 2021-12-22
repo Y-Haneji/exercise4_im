@@ -11,7 +11,7 @@ from logger import Logger
 random.seed(71)
 
 class Model():
-  def __init__(self, mode = 'training', dropout: float = 0.0) -> None:
+  def __init__(self, mode = 'train', dropout: float = 0.0) -> None:
     # モデルのアーキテクチャを作成
     self.units = 32
     self.batch_size = 100
@@ -140,8 +140,8 @@ class Model():
     diff_e_n_with_filter_bias = np.sum(diff_e_n_with_t, axis=1) # 
 
     # 重みの更新
-    # self.w2 = self.w2 - lr*diff_e_n_with_w2
-    # self.b2 = self.b2 - lr*diff_e_n_with_b2
+    self.w2 = self.w2 - lr*diff_e_n_with_w2
+    self.b2 = self.b2 - lr*diff_e_n_with_b2
     self.filter = self.filter - lr*diff_e_n_with_filter
     self.filter_bias = self.filter_bias - lr*diff_e_n_with_filter_bias
 
@@ -157,9 +157,12 @@ class Model():
     self.batch_size = 100
     history = []
     for i in tqdm(range(epochs)):
+      entropies = []
       for j in range(60000//self.batch_size):
         tr_x, tr_y = self.preprocessing(train_x, train_y)
         model, entropy = self.train_batch(tr_x, tr_y, lr)
+        entropies.append(entropy)
+      entropy = sum(entropies)/len(entropies)
       print(f'Epoch {i+1} end! Cross entroppy is {entropy}.')
       history.append((model,entropy))
     return history
