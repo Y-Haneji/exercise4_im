@@ -69,6 +69,8 @@ class Model():
     return self.dense_layer(input_vec, self.w1, self.b1)
 
   def sigmoid(self, input_vec):
+    sigmoid_range = 34.538776394910684
+    input_vec = np.clip(input_vec, -sigmoid_range, sigmoid_range)
     return 1/(1+np.exp(-input_vec))
 
   def dense_layer2(self, input_vec):
