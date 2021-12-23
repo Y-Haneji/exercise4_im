@@ -11,7 +11,7 @@ from logger import Logger
 random.seed(71)
 
 class Model():
-  def __init__(self, mode = 'training', dropout: float = 0.0) -> None:
+  def __init__(self, mode = 'train', dropout: float = 0.0) -> None:
     # モデルのアーキテクチャを作成
     self.units = 32
     self.batch_size = 100
