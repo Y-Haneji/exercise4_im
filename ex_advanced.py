@@ -178,7 +178,7 @@ class Model():
     return pred_y
 
   def load_best(self, history):
-    self.w1, self.b1, self.w2, self.b2, self.filter, self.filter_bias = min(history, key=lambda p: p[1])[0]
+    self.w1, self.b1, self.w2, self.b2, self.filter, self.filter_bias = history[np.nanargmin(history[1])][0]
 
   def save_model(self, name):
     np.savez(f'model/{name}', w1=self.w1, b1=self.b1, w2=self.w2, b2=self.b2, filter=self.filter, filter_bias=self.filter_bias)
