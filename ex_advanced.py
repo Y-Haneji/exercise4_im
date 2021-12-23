@@ -195,11 +195,11 @@ if __name__ == '__main__':
   train_x = mnist.download_and_parse_mnist_file('train-images-idx3-ubyte.gz')
   train_y = mnist.download_and_parse_mnist_file("train-labels-idx1-ubyte.gz")
   model = Model(mode ='train', dropout=0.1)
+  model.load_model('0003')
   history = model.train(train_x, train_y, epochs=50, lr=0.1)
   model.load_best(history)
   if run_name != '':
     model.save_model(run_name)
-  # model.load_model('0001')
 
   test_x = mnist.download_and_parse_mnist_file('t10k-images-idx3-ubyte.gz')
   test_y = mnist.download_and_parse_mnist_file('t10k-labels-idx1-ubyte.gz')
