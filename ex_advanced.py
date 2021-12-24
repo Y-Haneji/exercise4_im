@@ -45,7 +45,11 @@ class Layer:
     pass
 
   def get_weight(self, *args, **kwds) -> tuple:
-    return ()
+    return {}
+
+  def load_weight(self, weight_dic):
+    pass
+
 
 class Input(Layer):
   def __init__(self, output_shape: tuple):
@@ -58,7 +62,7 @@ class Input(Layer):
 
 
 class Dense(Layer):
-  def __init__(self, units: int, input_shape: tuple, opt: str='SGD', opt_kwds: dict={}):
+  def __init__(self, units: int, input_shape: tuple, name: str='dense', opt: str='SGD', opt_kwds: dict={}):
     self.units = units
     self.input_shape = input_shape
     input_size = 1
@@ -67,6 +71,7 @@ class Dense(Layer):
 
     self.w = random.normal(loc=0, scale=np.sqrt(1/input_size), size=input_size*units).reshape(units, input_size)
     self.b = random.normal(loc=0, scale=np.sqrt(1/input_size), size=units)
+    self.name = name
     self.opt = get_opt(opt, **opt_kwds)
 
   def forward(self, x, batch_size=100, mode='train'): # ミニバッチに対応
@@ -87,7 +92,11 @@ class Dense(Layer):
     self.b += db
 
   def get_weight(self) -> tuple:
-    return self.w, self.b
+    return {f'{self.name}_w': self.w, f'{self.name}_b': self.b}
+
+  def load_weight(self, weight_dic):
+    self.w = weight_dic[f'{self.name}_w']
+    self.b = weight_dic[f'{self.name}_b']
 
 class Dropout(Layer):
   def __init__(self, dropout: float=0.1):
@@ -156,9 +165,12 @@ class Model:
       raise ValueError('mode is train or inference.')
     self.mode = mode
     self.layers = []
+    self.weights_dic = {}
 
   def add(self, layer: Layer):
     self.layers.append(layer)
+    self.weights_dic.update(layer.get_weight())
+
 
   def preprocessing(self, train_x, train_y):
     '''学習用セットからバッチを作成する'''
@@ -200,10 +212,10 @@ class Model:
     for layer in self.layers:
       layer.update()
 
-    weights = ()
+    weights_dic = {}
     for layer in self.layers:
-      weights = weights + layer.get_weight()
-    return weights, entropy
+      weights_dic.update(layer.get_weight())
+    return weights_dic, entropy
   
   def train(self, train_x, train_y, epochs: int = 10, lr: float = 0.01):
     '''
@@ -218,11 +230,11 @@ class Model:
       entropies = []
       for j in range(60000//self.batch_size):
         tr_x, tr_y = self.preprocessing(train_x, train_y)
-        model, entropy = self.train_batch(tr_x, tr_y, lr)
+        self.weights_dic, entropy = self.train_batch(tr_x, tr_y, lr)
         entropies.append(entropy)
       entropy = sum(entropies)/len(entropies)
       print(f'Epoch {i+1} end! Cross entroppy is {entropy}.')
-      history.append((model,entropy))
+      history.append((self.weights_dic,entropy))
     return history
 
   def predict(self, test_x):
@@ -242,15 +254,17 @@ class Model:
     return pred_y
 
   def load_best(self, history):
-    self.w1, self.b1, self.w2, self.b2 = history[np.nanargmin(list(zip(*history))[1])][0]
+    self.weights_dic = history[np.nanargmin(list(zip(*history))[1])][0]
+    for layer in self.layers:
+      layer.load_weight(self.weights_dic)
 
   def save_model(self, name):
-    np.savez(f'model/{name}', w1=self.w1, b1=self.b1, w2=self.w2, b2=self.b2)
+    np.savez(f'model/{name}', **self.weights_dic)
 
   def load_model(self, name):
-    model = np.load(f'model/{name}.npz')
-    self.w1, self.b1, self.w2, self.b2 = model['w1'], model['b1'], model['w2'], model['b2']
-
+    self.weights_dic = np.load(f'model/{name}.npz')
+    for layer in self.layers:
+      layer.load_weight(self.weights_dic)
 
 if __name__ == '__main__': 
   print('please input model name. (ex: 0001)')
@@ -261,10 +275,10 @@ if __name__ == '__main__':
 
   model = Model(mode ='train')
   model.add(Input((28*28,)))
-  model.add(Dense(32, (28*28,), 'SGD', {'lr': 0.01}))
+  model.add(Dense(32, (28*28,), name='dense1', opt='SGD', opt_kwds={'lr': 0.01}))
   model.add(Sigmoid())
   model.add(Dropout(dropout=0.1))
-  model.add(Dense(10, (32,), 'SGD', {'lr': 0.01}))
+  model.add(Dense(10, (32,), name='dense2', opt='SGD', opt_kwds={'lr': 0.01}))
   model.add(Softmax())
 
   # model.load_model('0001')
