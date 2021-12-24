@@ -3,3 +3,18 @@ best entropy for train is 0.32853034042119167.
 accuracy score for test is 0.9148
 新しいインターフェースのテスト
 this model is 0000
+ReLUを試した
+this model is 0003
+best entropy for train is 2.3007979399634864.
+accuracy score for test is 0.1135
+
+ReLU試した
+this model is 0003
+best entropy for train is 1.8514617058786882.
+accuracy score for test is 0.2993
+
+0003
+this model is 0003
+best entropy for train is 1.8514617058786882.
+accuracy score for test is 0.2993
+

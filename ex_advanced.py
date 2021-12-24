@@ -133,6 +133,20 @@ class Sigmoid(Layer):
     return self.grad_x
 
 
+class ReLU(Layer):
+  def __init__(self):
+    pass
+
+  def forward(self, x, batch_size=100, mode='train'):
+    self.x = x
+    self.y = np.where(x>0, x, 0)
+    return self.y
+
+  def backward(self, grad):
+    self.grad_x = grad*np.where(self.x>0, 1, 0)
+    return self.grad_x
+
+
 class Softmax(Layer):
   def __init__(self):
     pass
@@ -262,12 +276,12 @@ if __name__ == '__main__':
   model = Model(mode ='train')
   model.add(Input((28*28,)))
   model.add(Dense(32, (28*28,), 'SGD', {'lr': 0.01}))
-  model.add(Sigmoid())
+  model.add(ReLU())
   model.add(Dropout(dropout=0.1))
   model.add(Dense(10, (32,), 'SGD', {'lr': 0.01}))
   model.add(Softmax())
 
-  # model.load_model('0001')
+  model.load_model('0003')
   history = model.train(train_x, train_y)
   model.load_best(history)
   model.save_model(run_name)
