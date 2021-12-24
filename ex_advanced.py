@@ -276,6 +276,7 @@ class Model:
     np.savez(f'model/{name}', **self.weights_dic)
 
   def load_model(self, name):
+    print(f'loading {name}...')
     self.weights_dic = np.load(f'model/{name}.npz')
     for layer in self.layers:
       layer.load_weight(self.weights_dic)
@@ -289,13 +290,13 @@ if __name__ == '__main__':
 
   model = Model(mode ='train')
   model.add(Input((28*28,)))
-  model.add(Dense(32, (28*28,), 'SGD', {'lr': 0.01}))
-  model.add(ReLU())
+  model.add(Dense(32, (28*28,), name='dense1', opt='SGD', opt_kwds={'lr': 0.01}))
+  model.add(Sigmoid())
   model.add(Dropout(dropout=0.1))
   model.add(Dense(10, (32,), name='dense2', opt='SGD', opt_kwds={'lr': 0.01}))
   model.add(Softmax())
 
-  model.load_model('0003')
+  # model.load_model('0003')
   history = model.train(train_x, train_y)
   model.load_best(history)
   model.save_model(run_name)
