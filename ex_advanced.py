@@ -20,9 +20,105 @@ class SGD:
     return dw, db
 
 
+class MomentumSGD:
+  def __init__(self, lr: float=0.01, alpha: float=0.9):
+    self.lr = lr
+    self.alpha = alpha
+
+  def update(self, grad_w, grad_b):
+    self.dw = self.alpha*self.dw - self.lr*grad_w
+    self.db = self.alpha*self.db - self.lr*grad_b
+    return self.dw, self.db
+
+
+class AdaGrad:
+  def __init__(self, lr: float=0.001, h0: float=1e-8):
+    self.lr = lr
+    self.h_w = h0
+    self.h_b = h0
+
+  def update(self, grad_w, grad_b):
+    self.h_w = self.h_w + grad_w*grad_w
+    self.h_b = self.h_b + grad_b*grad_b
+    dw = -self.lr/np.sqrt(self.h_w)*grad_w
+    db = -self.lr/np.sqrt(self.h_b)*grad_b
+    return dw, db
+
+
+class RMSProp:
+  def __init__(self, lr: float=0.001, rho: float=0.9, epsilon: float=1e-8, h0: float=1e-8):
+    self.lr = lr
+    self.rho = rho
+    self.epsilon = epsilon
+    self.h_w = h0
+    self.h_b = h0
+
+  def update(self, grad_w, grad_b):
+    self.h_w = self.rho*self.h_w + (1-self.rho)*grad_w*grad_w
+    self.h_b = self.rho*self.h_b + (1-self.rho)*grad_b*grad_b
+    dw = -self.lr/np.sqrt(self.h_w)*grad_w
+    db = -self.lr/np.sqrt(self.h_b)*grad_b
+    return dw, db
+
+
+class AdaDelta:
+  def __init__(self, rho: float=0.95, epsilon: float=1e-6):
+    self.rho = rho
+    self.epsilon = epsilon
+    self.h_w = 0
+    self.h_b = 0
+    self.s_w = 0
+    self.s_b = 0
+
+  def update(self, grad_w, grad_b):
+    self.h_w = self.rho*self.h_w + (1-self.rho)*grad_w*grad_w
+    self.h_b = self.rho*self.h_b + (1-self.rho)*grad_b*grad_b
+    dw = -np.sqrt(self.s_w+self.epsilon)/np.sqrt(self.h_w+self.epsilon)*grad_w
+    db = -np.sqrt(self.s_b+self.epsilon)/np.sqrt(self.h_b+self.epsilon)*grad_b
+    self.s_w = self.rho*self.s_w + (1-self.rho)*dw*dw
+    self.s_b = self.rho*self.s_b + (1-self.rho)*db*db
+    return dw, db
+
+
+class Adam:
+  def __init__(self, alpha: float=0.001, beta_1: float=0.9, beta_2: float=0.999, epsilon: float=1e-8):
+    self.alpha = alpha
+    self.beta_1 = beta_1
+    self.beta_2 = beta_2
+    self.epsilon = epsilon
+    self.t = 0
+    self.m_w = 0
+    self.m_b = 0
+    self.v_w = 0
+    self.v_b = 0
+
+  def update(self, grad_w, grad_b):
+    self.t = self.t+1
+    self.m_w = self.beta_1*self.m_w + (1-self.beta_1)*grad_w
+    self.m_b = self.beta_1*self.m_b + (1-self.beta_1)*grad_b
+    self.v_w = self.beta_2*self.v_w + (1-self.beta_2)*grad_w*grad_w
+    self.v_b = self.beta_2*self.v_b + (1-self.beta_2)*grad_b*grad_b
+    self.m_w_hat = self.m_w/(1-np.power(self.beta_1, self.t))
+    self.m_b_hat = self.m_b/(1-np.power(self.beta_1, self.t))
+    self.v_w_hat = self.v_w/(1-np.power(self.beta_2, self.t))
+    self.v_b_hat = self.v_b/(1-np.power(self.beta_2, self.t))
+    dw = -self.alpha*self.m_w_hat/(np.sqrt(self.v_w_hat)+self.epsilon)
+    db = -self.alpha*self.m_b_hat/(np.sqrt(self.v_b_hat)+self.epsilon)
+    return dw, db
+
+
 def get_opt(opt: str, *args, **kwds):
-  if opt == 'SGD':
-    optimizer = SGD(*args, **kwds)
+  opt_dic = {
+    'SGD': SGD,
+    'MomentumSGD': MomentumSGD,
+    'AdaGrad': AdaGrad,
+    'RMSProp': RMSProp,
+    'AdaDelta': AdaDelta,
+    'Adam': Adam
+  }
+
+  if opt in opt_dic:
+    optimizer = opt_dic[opt](*args, **kwds)
   else:
     raise ValueError(f'{opt} is not implemented.')
 
@@ -340,12 +436,12 @@ if __name__ == '__main__':
 
   model = Model(mode ='train')
   model.add(Input((28*28,)))
-  model.add(Dense(96, (28*28,), name='dense1', opt='SGD', opt_kwds={'lr': 0.01}))
+  model.add(Dense(96, (28*28,), name='dense1', opt='Adam', opt_kwds={}))
   model.add(Sigmoid())
   # model.add(ReLU())
-  model.add(BatchNormalization(96))
+  # model.add(BatchNormalization(96))
   # model.add(Dropout(dropout=0.1))
-  model.add(Dense(10, (96,), name='dense2', opt='SGD', opt_kwds={'lr': 0.01}))
+  model.add(Dense(10, (96,), name='dense2', opt='Adam', opt_kwds={}))
   model.add(Softmax())
 
   # model.load_model('0004')
@@ -359,8 +455,8 @@ if __name__ == '__main__':
   print(pred_y)
 
   print('please input log message about this run.')
-  logger.info(input())
   logger.info(f'this model is {run_name}')
+  logger.info(input())
   logger.info(f'best entropy for train is {np.nanmin(list(zip(*history))[1])}.')
   logger.info(f'accuracy score for test is {model.accuracy(test_y, pred_y)}')
   logger.info('')
