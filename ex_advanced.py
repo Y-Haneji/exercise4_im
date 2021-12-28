@@ -129,7 +129,7 @@ class ReLU(Layer):
 
 
 class BatchNormalization(Layer):
-  def __init__(self, units: int=32, name: str='bn', opt: str='SGD', opt_kwds: dict={}):
+  def __init__(self, units: int=96, name: str='bn', opt: str='SGD', opt_kwds: dict={}):
     self.name = name
     self.opt = get_opt(opt, **opt_kwds)
     self.gamma = np.ones((units,1))
@@ -340,11 +340,12 @@ if __name__ == '__main__':
 
   model = Model(mode ='train')
   model.add(Input((28*28,)))
-  model.add(Dense(32, (28*28,), name='dense1', opt='SGD', opt_kwds={'lr': 0.01}))
+  model.add(Dense(96, (28*28,), name='dense1', opt='SGD', opt_kwds={'lr': 0.01}))
   model.add(Sigmoid())
-  model.add(BatchNormalization())
-  model.add(Dropout(dropout=0.1))
-  model.add(Dense(10, (32,), name='dense2', opt='SGD', opt_kwds={'lr': 0.01}))
+  # model.add(ReLU())
+  model.add(BatchNormalization(96))
+  # model.add(Dropout(dropout=0.1))
+  model.add(Dense(10, (96,), name='dense2', opt='SGD', opt_kwds={'lr': 0.01}))
   model.add(Softmax())
 
   # model.load_model('0004')
