@@ -33,3 +33,18 @@ this model is 0002
 best entropy for train is 0.40614736453834727.
 accuracy score for test is 0.9117
 
+バッチノーマリゼーション
+this model is 0004
+best entropy for train is 2.3442408540024147.
+accuracy score for test is 0.1009
+
+ドロップアウト　エポック50
+this model is 0002
+best entropy for train is 0.26462987609313804.
+accuracy score for test is 0.9304
+
+バッチノーマリゼーション
+this model is 0004
+best entropy for train is 0.3034162734030193.
+accuracy score for test is 0.9137
+

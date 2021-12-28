@@ -98,34 +98,6 @@ class Dense(Layer):
     self.w = weight_dic[f'{self.name}_w']
     self.b = weight_dic[f'{self.name}_b']
 
-class Dropout(Layer):
-  def __init__(self, dropout: float=0.1):
-    self.dropout = dropout
-  
-  def forward(self, x, batch_size=100, mode='train'):
-    self.x = x
-    if mode == 'train':
-      dropped = np.zeros(x.shape)
-      num_drop = math.floor(x.shape[0]*self.dropout)
-      nodes_dropped = []
-      for batch in range(x.shape[1]):
-        node_dropped = random.choice(np.arange(batch*x.shape[0], (batch+1)*x.shape[0]), num_drop, replace=False)
-        nodes_dropped.extend(node_dropped)
-
-      np.put(dropped, nodes_dropped, 1)
-      self.y = x
-      np.place(self.y, dropped, 0)
-      self.flag_not_dropped = np.where(dropped, 0, 1)
-      return self.y
-
-    if mode == 'inference':
-      return x*(1-self.dropout)
-
-  def backward(self, grad):
-    self.grad_x = grad*self.flag_not_dropped
-    return self.grad_x
-
-
 class Sigmoid(Layer):
   def __init__(self):
     pass
@@ -153,6 +125,84 @@ class ReLU(Layer):
 
   def backward(self, grad):
     self.grad_x = grad*np.where(self.x>0, 1, 0)
+    return self.grad_x
+
+
+class BatchNormalization(Layer):
+  def __init__(self, units: int=32, name: str='bn', opt: str='SGD', opt_kwds: dict={}):
+    self.name = name
+    self.opt = get_opt(opt, **opt_kwds)
+    self.gamma = np.ones((units,1))
+    self.beta = np.zeros((units,1))
+    self.mean_list = []
+    self.variance_list = []
+
+  def forward(self, x, batch_size=100, mode='train'):
+    if mode == 'train':
+      self.x = x
+      self.batch_size = batch_size
+      self.mean = np.expand_dims(np.sum(x, axis=1)/self.batch_size, axis=-1)
+      self.variance = np.expand_dims(np.sum(np.square(x-self.mean), axis=1)/self.batch_size, axis=-1)
+      self.x_normalized = (x-self.mean)/np.sqrt(self.variance+sys.float_info.epsilon)
+      self.y = self.gamma*self.x_normalized + self.beta
+      self.mean_list.append(self.mean)
+      self.variance_list.append(self.variance)
+      self.mean_expected = np.average(np.array(self.mean_list), axis=0)
+      self.variance_expected = np.average(np.array(self.variance_list), axis=0)
+      return self.y
+    elif mode == 'inference':
+      return self.gamma/np.sqrt(self.variance_expected+sys.float_info.epsilon)*x + (self.beta - self.gamma*self.mean_expected/np.sqrt(self.variance_expected+sys.float_info.epsilon))
+    else:
+      raise ValueError('mode is train or inference.')
+
+  def backward(self, grad):
+    self.grad_x_normalized = grad*self.gamma
+    self.grad_variance = np.expand_dims(np.sum(grad*(self.x-self.mean)*(-1)/2*np.power(self.variance+sys.float_info.epsilon, -3/2), axis=1), axis=-1)
+    self.grad_mean = np.expand_dims(np.sum(self.grad_x_normalized*(-1)/np.sqrt(self.variance+sys.float_info.epsilon), axis=1), axis=-1) + self.grad_variance*np.expand_dims(np.sum(-2*(self.x-self.mean), axis=1)/self.batch_size, axis=-1)
+    self.grad_x = self.grad_x_normalized/np.sqrt(self.variance+sys.float_info.epsilon) + self.grad_variance*2*(self.x-self.mean)/self.batch_size + self.grad_mean/self.batch_size
+    self.grad_gamma = np.expand_dims(np.sum(grad*self.x_normalized, axis=1), axis=-1)
+    self.grad_beta = np.expand_dims(np.sum(grad, axis=1), axis=-1)
+    return self.grad_x
+
+  def update(self):
+    dgamma, dbeta = self.opt.update(self.grad_gamma, self.grad_beta)
+    self.gamma += dgamma
+    self.beta += dbeta
+
+  def get_weight(self) -> tuple:
+    return {f'{self.name}_gamma': self.gamma, f'{self.name}_beta': self.beta}
+
+  def load_weight(self, weight_dic):
+    self.gamma = weight_dic[f'{self.name}_gamma']
+    self.beta = weight_dic[f'{self.name}_beta']
+
+
+class Dropout(Layer):
+  def __init__(self, dropout: float=0.1):
+    self.dropout = dropout
+  
+  def forward(self, x, batch_size=100, mode='train'):
+    self.x = x
+    if mode == 'train':
+      dropped = np.zeros(x.shape)
+      num_drop = math.floor(x.shape[0]*self.dropout)
+      nodes_dropped = []
+      for batch in range(x.shape[1]):
+        node_dropped = random.choice(np.arange(batch*x.shape[0], (batch+1)*x.shape[0]), num_drop, replace=False)
+        nodes_dropped.extend(node_dropped)
+
+      np.put(dropped, nodes_dropped, 1)
+      self.y = x
+      np.place(self.y, dropped, 0)
+      self.flag_not_dropped = np.where(dropped, 0, 1)
+      return self.y
+    elif mode == 'inference':
+      return x*(1-self.dropout)
+    else:
+      raise ValueError('mode is train or inference.')
+
+  def backward(self, grad):
+    self.grad_x = grad*self.flag_not_dropped
     return self.grad_x
 
 
@@ -292,12 +342,13 @@ if __name__ == '__main__':
   model.add(Input((28*28,)))
   model.add(Dense(32, (28*28,), name='dense1', opt='SGD', opt_kwds={'lr': 0.01}))
   model.add(Sigmoid())
+  model.add(BatchNormalization())
   model.add(Dropout(dropout=0.1))
   model.add(Dense(10, (32,), name='dense2', opt='SGD', opt_kwds={'lr': 0.01}))
   model.add(Softmax())
 
-  # model.load_model('0003')
-  history = model.train(train_x, train_y)
+  # model.load_model('0004')
+  history = model.train(train_x, train_y, epochs=50)
   model.load_best(history)
   model.save_model(run_name)
 
