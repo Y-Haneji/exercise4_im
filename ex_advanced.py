@@ -150,10 +150,14 @@ class Layer:
 class Input(Layer):
   def __init__(self, output_shape: tuple):
     self.output_shape = output_shape
+    self.output_dim = len(output_shape)
   
   def forward(self, x, batch_size=100, mode='train'):
     self.x = x
-    self.y = x.reshape(((batch_size,) + self.output_shape)).T
+    if self.output_dim == 1:
+      self.y = x.reshape((batch_size,) + self.output_shape).T
+    else:  # 画像データをそのまま扱う場合を想定
+      self.y = x.reshape((batch_size,) + self.output_shape)
     return self.y
 
 
@@ -170,14 +174,82 @@ class Dense(Layer):
     self.name = name
     self.opt = get_opt(opt, **opt_kwds)
 
-  def forward(self, x, batch_size=100, mode='train'): # ミニバッチに対応
+  def forward(self, x, batch_size=100, mode='train'):
     # TODO: 画像入力に対応
-    self.x = x
-    self.y = self.w@x + self.b.reshape(-1, 1)
+    self.x_original = x
+    if self.x_original.ndim == 2:
+      self.x = x
+    else:  # 画像の入力を想定
+      self.x = x.reshape((batch_size, -1)).T
+    self.batch_size = batch_size
+    self.y = self.w@self.x + self.b.reshape(-1, 1)
     return self.y
 
   def backward(self, grad):
     self.grad_x = self.w.T@grad
+    self.grad_w = grad@self.x.T
+    self.grad_b = np.sum(grad, axis=1)
+    if self.x_original.ndim != 2:
+      self.grad_x = self.grad_x.T.reshape((self.batch_size,) + self.x_original.shape[1:])
+    return self.grad_x
+
+  def update(self):
+    dw, db = self.opt.update(self.grad_w, self.grad_b)
+    self.w += dw
+    self.b += db
+
+  def get_weight(self) -> tuple:
+    return {f'{self.name}_w': self.w, f'{self.name}_b': self.b}
+
+  def load_weight(self, weight_dic):
+    self.w = weight_dic[f'{self.name}_w']
+    self.b = weight_dic[f'{self.name}_b']
+
+
+class Conv(Layer):
+  def __init__(self, *, input_shape: tuple, filter_shape: tuple, filter_num: int, name: str='conv', opt: str='SGD', opt_kwds: dict={}):
+    self.im_h = input_shape[0]
+    self.im_w = input_shape[1]
+    self.filter_h = filter_shape[0]
+    self.filter_w = filter_shape[1]
+    self.pad_h = math.floor(self.filter_h/2)
+    self.pad_w = math.floor(self.filter_w/2)
+    self.o_h = self.im_h-self.filter_h+2*self.pad_h+1
+    self.o_w = self.im_w-self.filter_w+2*self.pad_w+1
+    self.filter_num = filter_num
+    self.w = 0.05*random.randn(self.filter_num, self.filter_h*self.filter_w)
+    self.b = 0.05*random.randn(self.filter_num)
+    self.name = name
+    self.opt = get_opt(opt, **opt_kwds)
+
+  def _im2col(self, im, batch_size):
+    pad_wid = ((0, 0), (self.pad_h, self.pad_h), (self.pad_w, self.pad_w))
+    pad_im = np.pad(im, pad_wid)
+    col = np.empty((batch_size, self.filter_h, self.filter_w, self.o_h, self.o_w))  # (batch size, filter height, filter width, output height, output width)
+    for h in range(self.filter_h):
+      for w in range(self.filter_w):
+        col[:, h, w, :, :] = pad_im[:, h : h+self.o_h, w : w+self.o_w]
+    col = col.transpose(1, 2, 0, 3, 4).reshape(self.filter_w*self.filter_h, batch_size*self.o_w*self.o_h)
+    return col
+
+  def _col2im(self, col, batch_size):
+    col = col.reshape(self.filter_h, self.filter_w, batch_size, self.o_h, self.o_w).transpose(2, 0, 1, 3, 4)
+    im = np.zeros((batch_size, self.im_h+2*self.pad_h, self.im_w+2*self.pad_w))
+    for h in range(self.filter_h):
+      for w in range(self.filter_w):
+        im[:, h : h+self.o_h, w : w+self.o_w] += col[:, h, w, :, :]
+    return im
+
+  def forward(self, x, batch_size=100, mode='train'):
+    self.x = self._im2col(x, batch_size)
+    self.batch_size = batch_size
+    self.y = self.w@self.x + self.b.reshape(-1, 1)
+    self.y = self.y.reshape(self.filter_num, batch_size, self.o_h, self.o_w).transpose(1, 0, 2, 3)
+    return self.y
+
+  def backward(self, grad):
+    grad = grad.transpose(1, 0, 2, 3).reshape(self.filter_num, self.batch_size*self.o_h*self.o_w)
+    self.grad_x = self._col2im(self.w.T@grad, self.batch_size)
     self.grad_w = grad@self.x.T
     self.grad_b = np.sum(grad, axis=1)
     return self.grad_x
@@ -193,6 +265,7 @@ class Dense(Layer):
   def load_weight(self, weight_dic):
     self.w = weight_dic[f'{self.name}_w']
     self.b = weight_dic[f'{self.name}_b']
+
 
 class Sigmoid(Layer):
   def __init__(self):
@@ -467,13 +540,17 @@ if __name__ == '__main__':
   train_y = mnist.download_and_parse_mnist_file("train-labels-idx1-ubyte.gz")
 
   model = Model(mode ='train')
-  model.add(Input((28*28,)))
-  model.add(Dense(96, (28*28,), name='dense1', opt='Adam', opt_kwds={}))
-  model.add(Sigmoid())
+  # model.add(Input((28*28,)))
+  # model.add(Dense(96, (28*28,), name='dense1', opt='Adam', opt_kwds={}))
+  # model.add(Sigmoid())
   # model.add(ReLU())
-  model.add(BatchNormalization(96))
-  model.add(Dropout(dropout=0.1))
-  model.add(Dense(10, (96,), name='dense2', opt='Adam', opt_kwds={}))
+  # model.add(BatchNormalization(96))
+  # model.add(Dropout(dropout=0.1))
+  # model.add(Dense(10, (96,), name='dense2', opt='Adam', opt_kwds={}))
+  model.add(Input((28, 28)))
+  model.add(Conv(input_shape=(28, 28), filter_shape=(3, 3), filter_num=32))
+  model.add(Sigmoid())
+  model.add(Dense(10, (28*28*32,), name='dense', opt='SGD', opt_kwds={}))
   model.add(Softmax())
 
   # model.load_model('0004')

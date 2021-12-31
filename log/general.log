@@ -102,3 +102,9 @@ best entropy for train is 0.18811278799405504.
 entropy for test is 0.26369804239534445
 accuracy score for test is 0.9289
 
+this model is 0006
+畳み込み
+best entropy for train is 0.02784974621249022.
+entropy for test is 0.05676740883959577
+accuracy score for test is 0.9824
+
