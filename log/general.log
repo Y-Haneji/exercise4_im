@@ -108,3 +108,32 @@ best entropy for train is 0.02784974621249022.
 entropy for test is 0.05676740883959577
 accuracy score for test is 0.9824
 
+this model is 0007
+pooling test
+best entropy for train is 0.16663652091937362.
+entropy for test is 0.16221173838067257
+accuracy score for test is 0.9574
+
+this model is 0007
+プーリング 30エポックまで
+best entropy for train is 0.10334937462786704.
+entropy for test is 0.1120820459034157
+accuracy score for test is 0.9689
+
+this model is 0007
+プーリン 50エポックまで
+best entropy for train is 0.0819178456337517.
+entropy for test is 0.09548449258187804
+accuracy score for test is 0.9727
+
+this model is 0007
+60epoch
+best entropy for train is 0.06336386754499466.
+entropy for test is 0.07266137421649807
+accuracy score for test is 0.9787
+this model is 0007
+プーリング 逆伝播を修正した
+best entropy for train is 0.05258662103872811.
+entropy for test is 0.06519311737183528
+accuracy score for test is 0.98
+

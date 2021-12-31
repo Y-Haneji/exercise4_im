@@ -267,6 +267,46 @@ class Conv(Layer):
     self.b = weight_dic[f'{self.name}_b']
 
 
+class Pooling(Layer):
+  def __init__(self, *, input_shape: tuple, channel: int, pool_shape: tuple):
+    self.im_h = input_shape[0]
+    self.im_w = input_shape[1]
+    self.channel = channel
+    self.pool_h = pool_shape[0]
+    self.pool_w = pool_shape[1]
+    self.o_h = self.im_h//self.pool_h
+    self.o_w = self.im_w//self.pool_w
+
+  def _im2col(self, im, batch_size):
+    col = np.empty((batch_size, self.channel, self.pool_h, self.pool_w, self.o_h, self.o_w))
+    for h in range(self.pool_h):
+      for w in range(self.pool_w):
+        col[:, :, h, w, :, :] = im[:, :, h : h+self.pool_h*self.o_h : self.pool_h, w : w+self.pool_w*self.o_w : self.pool_w]
+    col = col.transpose(0, 1, 4, 5, 2, 3).reshape(batch_size*self.channel*self.o_h*self.o_w, self.pool_h*self.pool_w)
+    return col
+
+  def _col2im(self, col, batch_size):
+    col = col.reshape(self.batch_size, self.channel, self.o_h, self.o_w, self.pool_h, self.pool_w).transpose(0, 1, 4, 5, 2, 3)
+    im = np.zeros((batch_size, self.channel, self.im_h, self.im_w))
+    for h in range(self.pool_h):
+      for w in range(self.pool_w):
+        im[:, :, h : h+self.pool_h*self.o_h : self.pool_h, w : w+self.pool_w*self.o_w : self.pool_w] += col[:, :, h, w, :, :]
+    return im
+
+  def forward(self, x, batch_size=100, mode='train'):
+    self.x = self._im2col(x, batch_size)
+    self.batch_size = batch_size
+    self.ind = np.argmax(self.x, axis=1)
+    self.y = np.max(self.x, axis=1).reshape((batch_size, self.channel, self.o_h, self.o_w))
+    return self.y
+
+  def backward(self, grad):
+    self.grad_x = np.zeros((self.batch_size*self.channel*self.o_h*self.o_w, self.pool_h*self.pool_w))
+    self.grad_x[np.arange(self.ind.size), self.ind] = grad.flatten()
+    self.grad_x = self._col2im(self.grad_x, self.batch_size)
+    return self.grad_x
+
+
 class Sigmoid(Layer):
   def __init__(self):
     pass
@@ -549,11 +589,12 @@ if __name__ == '__main__':
   # model.add(Dense(10, (96,), name='dense2', opt='Adam', opt_kwds={}))
   model.add(Input((28, 28)))
   model.add(Conv(input_shape=(28, 28), filter_shape=(3, 3), filter_num=32))
-  model.add(Sigmoid())
-  model.add(Dense(10, (28*28*32,), name='dense', opt='SGD', opt_kwds={}))
+  model.add(ReLU())
+  model.add(Pooling(input_shape=(28, 28), channel=32, pool_shape=(2, 2)))
+  model.add(Dense(10, (14*14*32,), name='dense', opt='SGD', opt_kwds={}))
   model.add(Softmax())
 
-  # model.load_model('0004')
+  # model.load_model('0007')
   history = model.train(train_x, train_y, epochs=50)
   model.load_best(history)
   model.save_model(run_name)
