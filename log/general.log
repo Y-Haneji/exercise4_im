@@ -1,18 +1,104 @@
 ドロップアウト
 best entropy for train is 0.32853034042119167.
 accuracy score for test is 0.9148
-畳み込み
+新しいインターフェースのテスト
+this model is 0000
+ReLUを試した
 this model is 0003
-best entropy for train is 2.0769375720597267.
-accuracy score for test is 0.2032
+best entropy for train is 2.3007979399634864.
+accuracy score for test is 0.1135
+
+ReLU試した
+this model is 0003
+best entropy for train is 1.8514617058786882.
+accuracy score for test is 0.2993
+
+0003
+this model is 0003
+best entropy for train is 1.8514617058786882.
+accuracy score for test is 0.2993
+
+ReLU
+this model is 0003
+best entropy for train is 1.8514617058786882.
+accuracy score for test is 0.2993
 
 畳み込み
 this model is 0003
-best entropy for train is nan.
-accuracy score for test is 0.6533
+best entropy for train is 1.8300973211761022.
+accuracy score for test is 0.3008
 
-畳み込み
+ドロップアウト
+this model is 0002
+best entropy for train is 0.40614736453834727.
+accuracy score for test is 0.9117
+
+バッチノーマリゼーション
+this model is 0004
+best entropy for train is 2.3442408540024147.
+accuracy score for test is 0.1009
+
+ドロップアウト エポック50
+this model is 0002
+best entropy for train is 0.26462987609313804.
+accuracy score for test is 0.9304
+
+バッチノーマリゼーション
+this model is 0004
+best entropy for train is 0.3034162734030193.
+accuracy score for test is 0.9137
+
+必修課題のみ
+this model is 0000
+best entropy for train is 0.10828128195107863.
+accuracy score for test is 0.9569
+
+ReLU
+this model is 0001
+best entropy for train is 1.0480852858656415.
+accuracy score for test is 0.5234
+
+ドロップアウト
+this model is 0002
+best entropy for train is 0.13876800866474837.
+accuracy score for test is 0.9584
+
+バッチノーマリゼーション
 this model is 0003
-best entropy for train is nan.
-accuracy score for test is 0.5697
+best entropy for train is 0.137853378693157.
+accuracy score for test is 0.9518
+
+Adam
+this model is 0004
+best entropy for train is 0.14324002248495307.
+accuracy score for test is 0.9465
+
+this model is 0004
+テストデータのクロスエントロピーの出力をテスト
+entropy for test is nan
+accuracy score for test is 0.9465
+
+this model is 0004
+テストデータのクロスエントロピーの出力をテスト
+entropy for test is 0.16904804733289416
+this model is 0004
+クロスエントロピーの出力をテスト
+entropy for test is 0.16904804733289416
+accuracy score for test is 0.9465
+
+this model is 0004
+
+entropy for test is 0.16904804733289416
+accuracy score for test is 0.9465
+
+this model is 
+
+entropy for test is 0.1690480473328942
+accuracy score for test is 0.9465
+
+this model is 0010
+演習課題4までの全て
+best entropy for train is 0.18811278799405504.
+entropy for test is 0.26369804239534445
+accuracy score for test is 0.9289
 
