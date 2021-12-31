@@ -317,6 +317,21 @@ class Softmax(Layer):
     return grad_x
 
 
+def to_one_hot_vector(labels):
+  l = [[1 if i == label else 0 for i in range(10)] for label in labels]
+  ohv = np.zeros((len(l), len(l[0])))
+  ohv[:] = l
+  return ohv
+
+def accuracy(true_y, pred_y):  # ラベル表示に対応、one-hot vectorに非対応
+  if true_y.shape != pred_y.shape:
+    raise ValueError(f'true_y and pred_y must have the same shape. {true_y.shape}, {pred_y.shape}')
+  return np.count_nonzero(true_y == pred_y) / true_y.shape[0]
+
+def cross_entropy(true_vec ,pred_vec):  # one-hot vectorに対応
+  return np.sum(np.sum(-1 * true_vec * np.log(pred_vec), axis=1)) / true_vec.shape[0]
+
+
 class Model:
   def __init__(self, mode = 'train') -> None:
     # モデルのアーキテクチャを作成
@@ -341,16 +356,8 @@ class Model:
     tr_y[:] = l
     return tr_x, tr_y # tr_x is (bs, 28, 28) tr_y is one-hot-encoding (bs, 10)
 
-  def postprocessing(self, input_vec): # ミニバッチに対応
-    return np.argmax(input_vec, axis=0)
-
-  def cross_entropy(self, true_vec ,pred_vec):
-    return np.sum(np.sum(-1 * true_vec * np.log(pred_vec), axis=0)) / self.batch_size
-
-  def accuracy(self, true_y, pred_y): # それぞれのyが1次元の場合にのみ対応済み
-    if true_y.shape != pred_y.shape:
-      raise ValueError(f'true_y and pred_y must have the same shape. {true_y.shape}, {pred_y.shape}')
-    return np.count_nonzero(true_y == pred_y) / true_y.shape[0]
+  def postprocessing(self, input_vec):  # ミニバッチに対応、bs*class
+    return np.argmax(input_vec, axis=1)
 
   def train_batch(self, tr_x, tr_y, lr):
     flag_input = True
@@ -360,7 +367,7 @@ class Model:
         flag_input = False
       x = layer.forward(x, self.batch_size, self.mode)
 
-    entropy = self.cross_entropy(tr_y, x.T)
+    entropy = cross_entropy(tr_y, x.T)
 
     flag_output = True
     for layer in reversed(self.layers):
@@ -397,21 +404,43 @@ class Model:
       history.append((self.weights_dic,entropy))
     return history
 
-  def predict(self, test_x):
+  def predict(self, test_x, test_y=None, valid=False):
+    '''
+    train_x: テストデータの特徴量
+    test_y(option): テストデータのラベル
+    valid: テストデータのlossを計算するかどうかのフラグ
+    '''
     self.mode = 'inference'
     self.batch_size = 1 # 推論時はバッチ処理を行わない
-    pred_y = []
-    for test_i in (test_x):
-      flag_input = True
-      for layer in self.layers:
-        if flag_input == True:
-          x = test_i
-          flag_input = False
-        x = layer.forward(x, self.batch_size, self.mode)
-      pred_y.append(self.postprocessing(self.layers[-1].y))
-
-    pred_y = np.array(pred_y).flatten()
-    return pred_y
+    if valid == False:
+      pred_y = []
+      for test_i in (test_x):
+        flag_input = True
+        for layer in self.layers:
+          if flag_input == True:
+            x = test_i
+            flag_input = False
+          x = layer.forward(x, self.batch_size, self.mode)
+        pred_y.append(self.layers[-1].y)
+      pred_y = self.postprocessing(np.array(pred_y))
+      return pred_y
+    elif valid == True:
+      test_y = to_one_hot_vector(test_y)
+      pred_y = []
+      for test_i in (test_x):
+        flag_input = True
+        for layer in self.layers:
+          if flag_input == True:
+            x = test_i
+            flag_input = False
+          x = layer.forward(x, self.batch_size, self.mode)
+        pred_y.append(self.layers[-1].y.flatten())
+      pred_y = np.array(pred_y)
+      entropy = cross_entropy(test_y, pred_y)
+      pred_y = self.postprocessing(pred_y)
+      return pred_y, entropy
+    else:
+      raise ValueError(f'please set bool not {valid} for valid.')
 
   def load_best(self, history):
     self.weights_dic = history[np.nanargmin(list(zip(*history))[1])][0]
@@ -430,6 +459,9 @@ class Model:
 if __name__ == '__main__': 
   print('please input model name. (ex: 0001)')
   run_name = input()
+  print('please input message about this run.')
+  run_msg = input()
+
   logger = Logger()
   train_x = mnist.download_and_parse_mnist_file('train-images-idx3-ubyte.gz')
   train_y = mnist.download_and_parse_mnist_file("train-labels-idx1-ubyte.gz")
@@ -439,8 +471,8 @@ if __name__ == '__main__':
   model.add(Dense(96, (28*28,), name='dense1', opt='Adam', opt_kwds={}))
   model.add(Sigmoid())
   # model.add(ReLU())
-  # model.add(BatchNormalization(96))
-  # model.add(Dropout(dropout=0.1))
+  model.add(BatchNormalization(96))
+  model.add(Dropout(dropout=0.1))
   model.add(Dense(10, (96,), name='dense2', opt='Adam', opt_kwds={}))
   model.add(Softmax())
 
@@ -451,12 +483,12 @@ if __name__ == '__main__':
 
   test_x = mnist.download_and_parse_mnist_file('t10k-images-idx3-ubyte.gz')
   test_y = mnist.download_and_parse_mnist_file('t10k-labels-idx1-ubyte.gz')
-  pred_y = model.predict(test_x)
+  pred_y, val_entropy = model.predict(test_x, test_y, valid=True)
   print(pred_y)
 
-  print('please input log message about this run.')
   logger.info(f'this model is {run_name}')
-  logger.info(input())
+  logger.info(run_msg)
   logger.info(f'best entropy for train is {np.nanmin(list(zip(*history))[1])}.')
-  logger.info(f'accuracy score for test is {model.accuracy(test_y, pred_y)}')
+  logger.info(f'entropy for test is {val_entropy}')
+  logger.info(f'accuracy score for test is {accuracy(test_y, pred_y)}')
   logger.info('')
