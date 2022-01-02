@@ -131,9 +131,34 @@ this model is 0007
 best entropy for train is 0.06336386754499466.
 entropy for test is 0.07266137421649807
 accuracy score for test is 0.9787
+
 this model is 0007
 プーリング 逆伝播を修正した
 best entropy for train is 0.05258662103872811.
 entropy for test is 0.06519311737183528
 accuracy score for test is 0.98
+
+this model is 0011
+畳み込み ReLU プーリング 50ep
+best entropy for train is 0.00585016991738078.
+entropy for test is 0.2085341280537474
+accuracy score for test is 0.9761
+
+this model is 0012
+ReLU プーリング ドロップアウト 100ep
+best entropy for train is 0.21337680246321053.
+entropy for test is 0.07733318826415429
+accuracy score for test is 0.9766
+
+this model is 0013
+sigmoid pooling dropout 100ep
+best entropy for train is 0.25696575282719347.
+entropy for test is 0.2906556303037868
+accuracy score for test is 0.9825
+
+this model is 0014
+ドロップアウトのみ 100ep
+best entropy for train is 0.225087248797681.
+entropy for test is 0.07475698844025372
+accuracy score for test is 0.9848
 
