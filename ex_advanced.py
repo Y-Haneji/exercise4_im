@@ -396,17 +396,8 @@ class Dropout(Layer):
   def forward(self, x, batch_size=100, mode='train'):
     self.x = x
     if mode == 'train':
-      dropped = np.zeros(x.shape)
-      num_drop = math.floor(x.shape[0]*self.dropout)
-      nodes_dropped = []
-      for batch in range(x.shape[1]):
-        node_dropped = random.choice(np.arange(batch*x.shape[0], (batch+1)*x.shape[0]), num_drop, replace=False)
-        nodes_dropped.extend(node_dropped)
-
-      np.put(dropped, nodes_dropped, 1)
-      self.y = x
-      np.place(self.y, dropped, 0)
-      self.flag_not_dropped = np.where(dropped, 0, 1)
+      self.mask = np.random.rand(*self.x.shape) >= self.dropout
+      self.y = x*self.mask
       return self.y
     elif mode == 'inference':
       return x*(1-self.dropout)
@@ -414,7 +405,7 @@ class Dropout(Layer):
       raise ValueError('mode is train or inference.')
 
   def backward(self, grad):
-    self.grad_x = grad*self.flag_not_dropped
+    self.grad_x = grad*self.mask
     return self.grad_x
 
 
