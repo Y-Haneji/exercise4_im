@@ -405,7 +405,7 @@ class Dropout(Layer):
 
       np.put(dropped, nodes_dropped, 1)
       self.y = x
-    self.grad_x = grad*self.mask
+      np.place(self.y, dropped, 0)
       self.flag_not_dropped = np.where(dropped, 0, 1)
       return self.y
     elif mode == 'inference':
@@ -466,7 +466,7 @@ class Model:
   def preprocessing(self, train_x, train_y):
     '''学習用セットからバッチを作成する'''
     idx = random.randint(0, len(train_y), self.batch_size)
-    tr_x = train_x[idx]
+    tr_x = train_x[idx].astype('float32')/255.0  # 正規化
     l = [[1 if i == label else 0 for i in range(10)] for label in train_y[idx]]
     tr_y = np.zeros((len(l), len(l[0])))
     tr_y[:] = l
