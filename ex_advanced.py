@@ -472,6 +472,26 @@ class Model:
   def postprocessing(self, input_vec):  # ミニバッチに対応、bs*class
     return np.argmax(input_vec, axis=1)
 
+  def valid_batch(self, val_x, val_y, lr):
+    flag_input = True
+    for layer in self.layers:
+      if flag_input == True:
+        x = val_x
+        flag_input = False
+      x = layer.forward(x, self.batch_size, self.mode)
+
+    entropy = cross_entropy(val_y, x.T)
+    return entropy
+
+  def valid(self, valid_x, valid_y, lr: float):
+    entropies = []
+    for i in range(valid_y.shape[0]//self.batch_size):
+      val_x, val_y = self.preprocessing(valid_x, valid_y)
+      entropy = self.valid_batch(val_x, val_y, lr)
+      entropies.append(entropy)
+    entropy = sum(entropies)/len(entropies)
+    return entropy
+
   def train_batch(self, tr_x, tr_y, lr):
     flag_input = True
     for layer in self.layers:
@@ -497,10 +517,13 @@ class Model:
       weights_dic.update(layer.get_weight())
     return weights_dic, entropy
   
-  def train(self, train_x, train_y, epochs: int = 10, lr: float = 0.01):
+  def train(self, train_x, train_y, valid_x=None, valid_y=None, valid: int=0, epochs: int = 10, lr: float = 0.01):
     '''
     train_x: 学習データの特徴量
     train_y: 学習データのラベル
+    valid_x: バリデーションデータの特徴量
+    valid_y: バリデーションデータのラベル
+    valid: バリデーションの間隔(0: バリデーションしない)
     epochs: エポック数
     lr: 学習率
     '''
@@ -513,7 +536,16 @@ class Model:
         self.weights_dic, entropy = self.train_batch(tr_x, tr_y, lr)
         entropies.append(entropy)
       entropy = sum(entropies)/len(entropies)
-      print(f'Epoch {i+1} end! Cross entroppy is {entropy}.')
+
+      if valid > 0:
+        if i%valid == 0:
+          val_entropy = self.valid(valid_x, valid_y, lr)
+          print(f'Epoch {i+1} end! loss: {entropy:.5f}, val_loss: {val_entropy:.5f}')
+        else:
+          print(f'Epoch {i+1} end! loss: {entropy:.5f}.')
+      else:
+        print(f'Epoch {i+1} end! loss: {entropy:.5f}.')
+      
       history.append((self.weights_dic,entropy))
     return history
 
@@ -578,6 +610,8 @@ if __name__ == '__main__':
   logger = Logger()
   train_x = mnist.download_and_parse_mnist_file('train-images-idx3-ubyte.gz')
   train_y = mnist.download_and_parse_mnist_file("train-labels-idx1-ubyte.gz")
+  test_x = mnist.download_and_parse_mnist_file('t10k-images-idx3-ubyte.gz')
+  test_y = mnist.download_and_parse_mnist_file('t10k-labels-idx1-ubyte.gz')
 
   model = Model(mode ='train')
   # model.add(Input((28*28,)))
@@ -588,22 +622,19 @@ if __name__ == '__main__':
   # model.add(Dropout(dropout=0.1))
   # model.add(Dense(10, (96,), name='dense2', opt='Adam', opt_kwds={}))
   model.add(Input((28, 28)))
-  model.add(Conv(input_shape=(28, 28), filter_shape=(3, 3), filter_num=32))
+  model.add(Conv(input_shape=(28, 28), filter_shape=(3, 3), filter_num=32, opt='SGD', opt_kwds={}))
   model.add(Sigmoid())
   model.add(Dropout(0.4))
   # model.add(Pooling(input_shape=(28, 28), channel=32, pool_shape=(2, 2)))
   # model.add(Dropout(0.4))
-  model.add(Dense(10, (32,28,28), name='dense', opt='SGD', opt_kwds={}))
-  model.add(Dropout(0.2))
+  model.add(Dense(10, (32,28,28), opt='SGD', opt_kwds={}))
   model.add(Softmax())
 
   # model.load_model('0007')
-  history = model.train(train_x, train_y, epochs=100)
+  history = model.train(train_x, train_y, test_x, test_y, valid=5, epochs=100)
   model.load_best(history)
   model.save_model(run_name)
 
-  test_x = mnist.download_and_parse_mnist_file('t10k-images-idx3-ubyte.gz')
-  test_y = mnist.download_and_parse_mnist_file('t10k-labels-idx1-ubyte.gz')
   pred_y, val_entropy = model.predict(test_x, test_y, valid=True)
   print(pred_y)
 
