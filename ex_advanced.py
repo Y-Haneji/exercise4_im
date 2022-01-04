@@ -455,9 +455,9 @@ class Model:
 
 
   def preprocessing(self, train_x, train_y):
-    '''学習用セットからバッチを作成する'''
+    '''学習データセットからバッチを作成する'''
     idx = random.randint(0, len(train_y), self.batch_size)
-    tr_x = train_x[idx].astype('float32')/255.0  # 正規化
+    tr_x = train_x[idx]
     l = [[1 if i == label else 0 for i in range(10)] for label in train_y[idx]]
     tr_y = np.zeros((len(l), len(l[0])))
     tr_y[:] = l
@@ -536,7 +536,7 @@ class Model:
       if valid == 1:
         val_entropy = self.valid(valid_x, valid_y, lr)
         print(f'Epoch {i+1} end! loss: {entropy:.5f}, val_loss: {val_entropy:.5f}')
-        history.append((self.weight_dic, entropy, val_entropy))
+        history.append((self.weights_dic, entropy, val_entropy))
       elif valid >= 2:
         if i%valid == 0:
           val_entropy = self.valid(valid_x, valid_y, lr)
@@ -622,6 +622,9 @@ if __name__ == '__main__':
   train_y = mnist.download_and_parse_mnist_file("train-labels-idx1-ubyte.gz")
   test_x = mnist.download_and_parse_mnist_file('t10k-images-idx3-ubyte.gz')
   test_y = mnist.download_and_parse_mnist_file('t10k-labels-idx1-ubyte.gz')
+  # 正規化
+  train_x = train_x.astype('float32')/255.0
+  test_x = test_x.astype('float32')/255.0
 
   model = Model(mode='train')
   # model.add(Input((28*28,)))
