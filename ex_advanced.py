@@ -623,7 +623,7 @@ if __name__ == '__main__':
   test_x = mnist.download_and_parse_mnist_file('t10k-images-idx3-ubyte.gz')
   test_y = mnist.download_and_parse_mnist_file('t10k-labels-idx1-ubyte.gz')
 
-  model = Model(mode ='train')
+  model = Model(mode='train')
   # model.add(Input((28*28,)))
   # model.add(Dense(96, (28*28,), name='dense1', opt='Adam', opt_kwds={}))
   # model.add(Sigmoid())
@@ -641,7 +641,7 @@ if __name__ == '__main__':
   model.add(Softmax())
 
   # model.load_model('0007')
-  history = model.train(train_x, train_y, test_x, test_y, valid=5, epochs=100)
+  history = model.train(train_x, train_y, test_x, test_y, valid=1, epochs=100)
   model.save_history(run_name, history)
   model.load_best(history)
   model.save_model(run_name)
@@ -650,13 +650,13 @@ if __name__ == '__main__':
   print(pred_y)
 
   if run_name != '':
-    logger.info(f'this model is {run_name}')
+    logger.info(run_name)
     logger.info(run_msg)
-    logger.info(f'best entropy for train is {np.nanmin(list(zip(*history))[1])}.')
-    logger.info(f'entropy for test is {val_entropy}')
-    logger.info(f'accuracy score for test is {accuracy(test_y, pred_y)}')
+    logger.info(f'loss: {np.nanmin(list(zip(*history))[1])}.')
+    logger.info(f'val_loss: {val_entropy}')
+    logger.info(f'val_acc: {accuracy(test_y, pred_y)}')
     logger.info('')
   else:
-    print(f'best entropy for train is {np.nanmin(list(zip(*history))[1])}.')
-    print(f'entropy for test is {val_entropy}')
-    print(f'accuracy score for test is {model.accuracy(test_y, pred_y)}')
+    print(f'loss: {np.nanmin(list(zip(*history))[1])}.')
+    print(f'val_loss {val_entropy}')
+    print(f'val_acc {model.accuracy(test_y, pred_y)}')
