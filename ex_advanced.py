@@ -533,16 +533,22 @@ class Model:
         entropies.append(entropy)
       entropy = sum(entropies)/len(entropies)
 
-      if valid > 0:
+      if valid == 1:
+        val_entropy = self.valid(valid_x, valid_y, lr)
+        print(f'Epoch {i+1} end! loss: {entropy:.5f}, val_loss: {val_entropy:.5f}')
+        history.append((self.weight_dic, entropy, val_entropy))
+      elif valid >= 2:
         if i%valid == 0:
           val_entropy = self.valid(valid_x, valid_y, lr)
           print(f'Epoch {i+1} end! loss: {entropy:.5f}, val_loss: {val_entropy:.5f}')
         else:
           print(f'Epoch {i+1} end! loss: {entropy:.5f}.')
+        history.append((self.weight_dic, entropy))
       else:
         print(f'Epoch {i+1} end! loss: {entropy:.5f}.')
-      
-      history.append((self.weights_dic,entropy))
+        history.append((self.weights_dic, entropy))
+    
+    history = dict(zip(['weight', 'loss', 'val_loss'], list(zip(*history))))
     return history
 
   def predict(self, test_x, test_y=None, valid=False):
@@ -584,7 +590,10 @@ class Model:
       raise ValueError(f'please set bool not {valid} for valid.')
 
   def load_best(self, history):
-    self.weights_dic = history[np.nanargmin(list(zip(*history))[1])][0]
+    if 'val_loss' in history:
+      self.weights_dic = history['weight'][np.nanargmin(history['val_loss'])]
+    else:
+      self.weight_dic = history['weight'][np.nanargmin(history['loss'])]
     for layer in self.layers:
       layer.load_weight(self.weights_dic)
 
