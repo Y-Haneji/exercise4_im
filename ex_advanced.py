@@ -467,6 +467,7 @@ class Model:
     return np.argmax(input_vec, axis=1)
 
   def valid_batch(self, val_x, val_y, lr):
+    self.mode = 'inference'
     flag_input = True
     for layer in self.layers:
       if flag_input == True:
@@ -487,6 +488,7 @@ class Model:
     return entropy
 
   def train_batch(self, tr_x, tr_y, lr):
+    self.mode = 'train'
     flag_input = True
     for layer in self.layers:
       if flag_input == True:
