@@ -178,12 +178,7 @@ class Dense(Layer):
     self.opt = get_opt(opt, **opt_kwds)
 
   def forward(self, x, batch_size=100, mode='train'):
-    # TODO: 画像入力に対応
-    self.x_original = x
-    if self.x_original.ndim == 2:
-      self.x = x
-    else:  # 画像の入力を想定
-      self.x = x.reshape((batch_size, -1)).T
+    self.x = x
     self.batch_size = batch_size
     self.y = self.w@self.x + self.b.reshape(-1, 1)
     return self.y
@@ -192,8 +187,6 @@ class Dense(Layer):
     self.grad_x = self.w.T@grad
     self.grad_w = grad@self.x.T
     self.grad_b = np.sum(grad, axis=1)
-    if self.x_original.ndim != 2:
-      self.grad_x = self.grad_x.T.reshape((self.batch_size,) + self.x_original.shape[1:])
     return self.grad_x
 
   def update(self):
@@ -307,6 +300,18 @@ class Pooling(Layer):
     self.grad_x = np.zeros((self.batch_size*self.channel*self.o_h*self.o_w, self.pool_h*self.pool_w))
     self.grad_x[np.arange(self.ind.size), self.ind] = grad.flatten()
     self.grad_x = self._col2im(self.grad_x, self.batch_size)
+    return self.grad_x
+
+
+class Flatten(Layer):
+  def forward(self, x, batch_size=100, mode='train'):
+    self.x = x
+    self.batch_size = batch_size
+    self.y = x.reshape((batch_size, -1)).T
+    return self.y
+  
+  def backward(self, grad):
+    self.grad_x = grad.T.reshape((self.batch_size, self.x.shape[1:]))
     return self.grad_x
 
 
