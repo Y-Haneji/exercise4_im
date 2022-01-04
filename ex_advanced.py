@@ -1,11 +1,14 @@
+import math
+import pickle
 import sys
-from tqdm import tqdm
+
+import matplotlib.pyplot as plt
+import mnist
 import numpy as np
 from numpy import random
-import math
-import mnist
-import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
+from tqdm import tqdm
+
 from logger import Logger
 
 random.seed(71)
@@ -601,6 +604,11 @@ class Model:
     for layer in self.layers:
       layer.load_weight(self.weights_dic)
 
+  def save_history(self, name, history):
+    with open(f'history/{name}_history.dump', 'wb') as f:
+      pickle.dump(history, f)
+
+
 if __name__ == '__main__': 
   print('please input model name. (ex: 0001)')
   run_name = input()
@@ -632,6 +640,7 @@ if __name__ == '__main__':
 
   # model.load_model('0007')
   history = model.train(train_x, train_y, test_x, test_y, valid=5, epochs=100)
+  model.save_history(run_name, history)
   model.load_best(history)
   model.save_model(run_name)
 
