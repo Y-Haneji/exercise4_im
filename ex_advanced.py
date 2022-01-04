@@ -396,8 +396,17 @@ class Dropout(Layer):
   def forward(self, x, batch_size=100, mode='train'):
     self.x = x
     if mode == 'train':
-      self.mask = np.random.rand(*self.x.shape) >= self.dropout
-      self.y = x*self.mask
+      dropped = np.zeros(x.shape)
+      num_drop = math.floor(x.shape[0]*self.dropout)
+      nodes_dropped = []
+      for batch in range(x.shape[1]):
+        node_dropped = random.choice(np.arange(batch*x.shape[0], (batch+1)*x.shape[0]), num_drop, replace=False)
+        nodes_dropped.extend(node_dropped)
+
+      np.put(dropped, nodes_dropped, 1)
+      self.y = x
+    self.grad_x = grad*self.mask
+      self.flag_not_dropped = np.where(dropped, 0, 1)
       return self.y
     elif mode == 'inference':
       return x*(1-self.dropout)
