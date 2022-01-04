@@ -652,11 +652,11 @@ if __name__ == '__main__':
   if run_name != '':
     logger.info(run_name)
     logger.info(run_msg)
-    logger.info(f'loss: {np.nanmin(list(zip(*history))[1])}.')
+    logger.info(f'loss: {np.nanmin(history["loss"])}.')
     logger.info(f'val_loss: {val_entropy}')
     logger.info(f'val_acc: {accuracy(test_y, pred_y)}')
     logger.info('')
   else:
-    print(f'loss: {np.nanmin(list(zip(*history))[1])}.')
+    print(f'loss: {np.nanmin(history["loss"])}.')
     print(f'val_loss {val_entropy}')
     print(f'val_acc {model.accuracy(test_y, pred_y)}')
