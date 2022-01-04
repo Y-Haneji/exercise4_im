@@ -1,10 +1,10 @@
 import logging
 
 class Logger:
-  def __init__(self):
+  def __init__(self, filename='general.log'):
     self.general_logger = logging.getLogger('general')
     stream_handler = logging.StreamHandler()
-    file_general_handler = logging.FileHandler('./log/general.log')
+    file_general_handler = logging.FileHandler(f'./log/{filename}')
 
     if len(self.general_logger.handlers) == 0:
       self.general_logger.addHandler(stream_handler)
