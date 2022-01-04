@@ -162,3 +162,21 @@ best entropy for train is 0.225087248797681.
 entropy for test is 0.07475698844025372
 accuracy score for test is 0.9848
 
+this model is 0012
+ReLU プーリング ドロップアウト 100ep
+best entropy for train is 0.0037360777354396462.
+entropy for test is 0.10470627540190705
+accuracy score for test is 0.9764
+
+this model is 0015
+ReLU プーリング ドロップアウト Adam 100ep
+best entropy for train is 0.005951174512439587.
+entropy for test is 0.35735545230444654
+accuracy score for test is 0.9784
+
+this model is 0014
+ドロップアウトのみ 100ep
+best entropy for train is 0.014587184540053023.
+entropy for test is 0.0742969086788843
+accuracy score for test is 0.9845
+
