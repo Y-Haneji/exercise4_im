@@ -484,8 +484,9 @@ class Model:
         flag_input = False
       x = layer.forward(x, self.batch_size, self.mode)
 
-    entropy = cross_entropy(to_one_hot_vector(val_y), x.T)
-    pred_y = self.postprocessing(x)
+    pred_y = self.layers[-1].y.T
+    entropy = cross_entropy(to_one_hot_vector(val_y), pred_y)
+    pred_y = self.postprocessing(pred_y)
     acc = accuracy(val_y, pred_y)
 
     return entropy, acc
@@ -511,8 +512,9 @@ class Model:
         flag_input = False
       x = layer.forward(x, self.batch_size, self.mode)
 
-    entropy = cross_entropy(to_one_hot_vector(tr_y), x.T)
-    pred_y = self.postprocessing(x)
+    pred_y = self.layers[-1].y.T
+    entropy = cross_entropy(to_one_hot_vector(tr_y), pred_y)
+    pred_y = self.postprocessing(pred_y)
     acc = accuracy(tr_y, pred_y)
 
     flag_output = True
@@ -658,12 +660,12 @@ if __name__ == '__main__':
   # model.add(Dropout(dropout=0.1))
   # model.add(Dense(10, (96,), name='dense2', opt='Adam', opt_kwds={}))
   model.add(Input((28, 28)))
-  model.add(Conv(input_shape=(28, 28), filter_shape=(3, 3), filter_num=32, opt='Adam', opt_kwds={}))
+  model.add(Conv(input_shape=(28, 28), filter_shape=(3, 3), filter_num=64, opt='Adam', opt_kwds={}))
   model.add(ReLU())
-  model.add(Pooling(input_shape=(28, 28), channel=32, pool_shape=(2, 2)))
+  model.add(Pooling(input_shape=(28, 28), channel=64, pool_shape=(2, 2)))
   model.add(Flatten())
   model.add(Dropout(dropout=0.4))
-  model.add(Dense(10, (32,14,14), opt='Adam', opt_kwds={}))
+  model.add(Dense(10, (64,14,14), opt='Adam', opt_kwds={}))
   model.add(Softmax())
 
   # model.load_model('0007')
