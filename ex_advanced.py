@@ -558,17 +558,17 @@ class Model:
       # TODO: historyをlistのdictで初期化しておき、リストに要素を追加
       if valid == 1:
         val_entropy, val_acc = self.valid(valid_x, valid_y, lr)
-        print(f'Epoch {i+1}, loss: {entropy:.5f}, acc: {acc:.2f}, val_loss: {val_entropy:.5f}, val_acc: {val_acc:.2f}')
+        print(f'Epoch {i+1}, loss: {entropy:.5f}, acc: {acc:.5f}, val_loss: {val_entropy:.5f}, val_acc: {val_acc:.5f}')
         history.append((self.weights_dic, entropy, acc, val_entropy, val_acc))
       elif valid >= 2:
         if i%valid == 0:
           val_entropy, val_acc = self.valid(valid_x, valid_y, lr)
-          print(f'Epoch {i+1}, loss: {entropy:.5f}, acc: {acc:.2f}, val_loss: {val_entropy:.5f}, val_acc: {val_acc:.2f}')
+          print(f'Epoch {i+1}, loss: {entropy:.5f}, acc: {acc:.5f}, val_loss: {val_entropy:.5f}, val_acc: {val_acc:.5f}')
         else:
-          print(f'Epoch {i+1}, loss: {entropy:.5f}, acc: {acc:.2f}')
+          print(f'Epoch {i+1}, loss: {entropy:.5f}, acc: {acc:.5f}')
         history.append((self.weight_dic, entropy, acc))
       else:
-        print(f'Epoch {i+1}, loss: {entropy:.5f}, acc: {acc:.2f}')
+        print(f'Epoch {i+1}, loss: {entropy:.5f}, acc: {acc:.5f}')
         history.append((self.weights_dic, entropy, acc))
     
     history = dict(zip(['weight', 'loss', 'acc', 'val_loss', 'val_acc'], list(zip(*history))))
