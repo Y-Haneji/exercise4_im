@@ -447,6 +447,16 @@ def cross_entropy(true_vec ,pred_vec):  # one-hot vectorに対応
   return np.sum(np.sum(-1 * true_vec * np.log(pred_vec), axis=1)) / true_vec.shape[0]
 
 
+def moving_average_curve(wave, window: int=2):
+  mac = []
+  for i in range(len(wave)):
+    if i < window-1:
+      mac[i] = np.mean(wave[0:i+1])
+    else:
+      mac[i] = np.mean(wave[i-window+1:i+1])
+  return mac
+
+
 class Model:
   def __init__(self, mode = 'train') -> None:
     # モデルのアーキテクチャを作成
@@ -617,7 +627,7 @@ class Model:
       epoch = np.nanargmin(history['val_loss'])
     else:
       epoch = np.nanargmin(history['loss'])
-    print(f'back to epoch {epoch}')
+    print(f'back to epoch {epoch+1}')  # epochはインデックスで保持している
     self.weight_dic = history['weight'][epoch]
     for layer in self.layers:
       layer.load_weight(self.weights_dic)
@@ -648,8 +658,8 @@ if __name__ == '__main__':
   test_x = mnist.download_and_parse_mnist_file('t10k-images-idx3-ubyte.gz')
   test_y = mnist.download_and_parse_mnist_file('t10k-labels-idx1-ubyte.gz')
   # 正規化
-  train_x = train_x.astype('float32')/255.0
-  test_x = test_x.astype('float32')/255.0
+  # train_x = train_x.astype('float32')/255.0
+  # test_x = test_x.astype('float32')/255.0
 
   model = Model(mode='train')
   # model.add(Input((28*28,)))
@@ -660,19 +670,20 @@ if __name__ == '__main__':
   # model.add(Dropout(dropout=0.1))
   # model.add(Dense(10, (96,), name='dense2', opt='Adam', opt_kwds={}))
   model.add(Input((28, 28)))
-  model.add(Conv(input_shape=(28, 28), filter_shape=(3, 3), filter_num=64, opt='Adam', opt_kwds={}))
-  model.add(ReLU())
-  model.add(Pooling(input_shape=(28, 28), channel=64, pool_shape=(2, 2)))
+  model.add(Conv(input_shape=(28, 28), filter_shape=(3, 3), filter_num=32, opt='Adam', opt_kwds={}))
+  model.add(Sigmoid())
+  # model.add(Pooling(input_shape=(28, 28), channel=32, pool_shape=(2, 2)))
   model.add(Flatten())
   model.add(Dropout(dropout=0.4))
-  model.add(Dense(10, (64,14,14), opt='Adam', opt_kwds={}))
+  model.add(Dense(10, (32,28,28), opt='Adam', opt_kwds={}))
   model.add(Softmax())
 
   # model.load_model('0007')
   history = model.train(train_x, train_y, test_x, test_y, valid=1, epochs=100)
-  model.save_history(run_name, history)
   model.load_best(history)
-  model.save_model(run_name)
+  if run_name != '':
+    model.save_history(run_name, history)
+    model.save_model(run_name)
 
   pred_y, val_entropy = model.predict(test_x, test_y, valid=True)
   print(pred_y)
@@ -692,13 +703,13 @@ if __name__ == '__main__':
   figure = plt.figure()
   plt.plot(history['loss'], label='loss')
   if 'val_loss' in history:
-    plt.plot(history['val_loss'], label='val_loss')
+    plt.plot(moving_average_curve(history['val_loss'], 5), label='val_loss')
   plt.legend()
   plt.show()
 
   figure = plt.figure()
   plt.plot(history['acc'], label='acc')
   if 'val_acc' in history:
-    plt.plot(history['val_acc'], label='val_acc')
+    plt.plot(moving_average_curve(history['val_acc'], 5), label='val_acc')
   plt.legend()
   plt.show()

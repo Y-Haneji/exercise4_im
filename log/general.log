@@ -203,3 +203,13 @@ adam relu 正規化
 val_loss: 0.05536069012690472
 val_acc: 0.9869
 
+0013
+adam relu 正規化 filter64
+val_loss: 0.06462371682916615
+val_acc: 0.9867
+
+0015
+only drop adam normalization
+val_loss: 0.06600084026443392
+val_acc: 0.9831
+
