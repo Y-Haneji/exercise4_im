@@ -304,6 +304,9 @@ class Pooling(Layer):
 
 
 class Flatten(Layer):
+  def __init__(self):
+    pass
+
   def forward(self, x, batch_size=100, mode='train'):
     self.x = x
     self.batch_size = batch_size
@@ -311,7 +314,7 @@ class Flatten(Layer):
     return self.y
   
   def backward(self, grad):
-    self.grad_x = grad.T.reshape((self.batch_size, self.x.shape[1:]))
+    self.grad_x = grad.T.reshape((self.batch_size, *self.x.shape[1:]))
     return self.grad_x
 
 
@@ -401,7 +404,7 @@ class Dropout(Layer):
   def forward(self, x, batch_size=100, mode='train'):
     self.x = x
     if mode == 'train':
-      self.mask = np.random.rand(*self.x.shape) >= self.dropout
+      self.mask = (np.random.rand(*self.x.shape) >= self.dropout)
       self.y = x*self.mask
       return self.y
     elif mode == 'inference':
@@ -463,10 +466,11 @@ class Model:
     '''学習データセットからバッチを作成する'''
     idx = random.randint(0, len(train_y), self.batch_size)
     tr_x = train_x[idx]
-    l = [[1 if i == label else 0 for i in range(10)] for label in train_y[idx]]
-    tr_y = np.zeros((len(l), len(l[0])))
-    tr_y[:] = l
-    return tr_x, tr_y # tr_x is (bs, 28, 28) tr_y is one-hot-encoding (bs, 10)
+    tr_y = train_y[idx]
+    # l = [[1 if i == label else 0 for i in range(10)] for label in train_y[idx]]
+    # tr_y = np.zeros((len(l), len(l[0])))
+    # tr_y[:] = l
+    return tr_x, tr_y # tr_x: (bs, 28, 28)
 
   def postprocessing(self, input_vec):  # ミニバッチに対応、bs*class
     return np.argmax(input_vec, axis=1)
@@ -480,17 +484,23 @@ class Model:
         flag_input = False
       x = layer.forward(x, self.batch_size, self.mode)
 
-    entropy = cross_entropy(val_y, x.T)
-    return entropy
+    entropy = cross_entropy(to_one_hot_vector(val_y), x.T)
+    pred_y = self.postprocessing(x)
+    acc = accuracy(val_y, pred_y)
+
+    return entropy, acc
 
   def valid(self, valid_x, valid_y, lr: float):
     entropies = []
+    accuracies = []
     for i in range(valid_y.shape[0]//self.batch_size):
       val_x, val_y = self.preprocessing(valid_x, valid_y)
-      entropy = self.valid_batch(val_x, val_y, lr)
+      entropy, acc = self.valid_batch(val_x, val_y, lr)
       entropies.append(entropy)
+      accuracies.append(acc)
     entropy = sum(entropies)/len(entropies)
-    return entropy
+    acc = sum(accuracies)/len(accuracies)
+    return entropy, acc
 
   def train_batch(self, tr_x, tr_y, lr):
     self.mode = 'train'
@@ -501,12 +511,14 @@ class Model:
         flag_input = False
       x = layer.forward(x, self.batch_size, self.mode)
 
-    entropy = cross_entropy(tr_y, x.T)
+    entropy = cross_entropy(to_one_hot_vector(tr_y), x.T)
+    pred_y = self.postprocessing(x)
+    acc = accuracy(tr_y, pred_y)
 
     flag_output = True
     for layer in reversed(self.layers):
       if flag_output == True:
-        grad = tr_y
+        grad = to_one_hot_vector(tr_y)
         flag_output = False
       grad = layer.backward(grad)
 
@@ -516,7 +528,7 @@ class Model:
     weights_dic = {}
     for layer in self.layers:
       weights_dic.update(layer.get_weight())
-    return weights_dic, entropy
+    return weights_dic, entropy, acc
   
   def train(self, train_x, train_y, valid_x=None, valid_y=None, valid: int=0, epochs: int = 10, lr: float = 0.01):
     '''
@@ -532,28 +544,32 @@ class Model:
     history = []
     for i in tqdm(range(epochs)):
       entropies = []
+      accuracies = []
       for j in range(60000//self.batch_size):
         tr_x, tr_y = self.preprocessing(train_x, train_y)
-        self.weights_dic, entropy = self.train_batch(tr_x, tr_y, lr)
+        self.weights_dic, entropy, acc = self.train_batch(tr_x, tr_y, lr)
         entropies.append(entropy)
+        accuracies.append(acc)
       entropy = sum(entropies)/len(entropies)
+      acc = sum(accuracies)/len(accuracies)
 
+      # TODO: historyをlistのdictで初期化しておき、リストに要素を追加
       if valid == 1:
-        val_entropy = self.valid(valid_x, valid_y, lr)
-        print(f'Epoch {i+1} end! loss: {entropy:.5f}, val_loss: {val_entropy:.5f}')
-        history.append((self.weights_dic, entropy, val_entropy))
+        val_entropy, val_acc = self.valid(valid_x, valid_y, lr)
+        print(f'Epoch {i+1}, loss: {entropy:.5f}, acc: {acc:.2f}, val_loss: {val_entropy:.5f}, val_acc: {val_acc:.2f}')
+        history.append((self.weights_dic, entropy, acc, val_entropy, val_acc))
       elif valid >= 2:
         if i%valid == 0:
-          val_entropy = self.valid(valid_x, valid_y, lr)
-          print(f'Epoch {i+1} end! loss: {entropy:.5f}, val_loss: {val_entropy:.5f}')
+          val_entropy, val_acc = self.valid(valid_x, valid_y, lr)
+          print(f'Epoch {i+1}, loss: {entropy:.5f}, acc: {acc:.2f}, val_loss: {val_entropy:.5f}, val_acc: {val_acc:.2f}')
         else:
-          print(f'Epoch {i+1} end! loss: {entropy:.5f}.')
-        history.append((self.weight_dic, entropy))
+          print(f'Epoch {i+1}, loss: {entropy:.5f}, acc: {acc:.2f}')
+        history.append((self.weight_dic, entropy, acc))
       else:
-        print(f'Epoch {i+1} end! loss: {entropy:.5f}.')
-        history.append((self.weights_dic, entropy))
+        print(f'Epoch {i+1}, loss: {entropy:.5f}, acc: {acc:.2f}')
+        history.append((self.weights_dic, entropy, acc))
     
-    history = dict(zip(['weight', 'loss', 'val_loss'], list(zip(*history))))
+    history = dict(zip(['weight', 'loss', 'acc', 'val_loss', 'val_acc'], list(zip(*history))))
     return history
 
   def predict(self, test_x, test_y=None, valid=False):
@@ -596,9 +612,11 @@ class Model:
 
   def load_best(self, history):
     if 'val_loss' in history:
-      self.weights_dic = history['weight'][np.nanargmin(history['val_loss'])]
+      epoch = np.nanargmin(history['val_loss'])
     else:
-      self.weight_dic = history['weight'][np.nanargmin(history['loss'])]
+      epoch = np.nanargmin(history['loss'])
+    print(f'back to epoch {epoch}')
+    self.weight_dic = history['weight'][epoch]
     for layer in self.layers:
       layer.load_weight(self.weights_dic)
 
@@ -640,12 +658,12 @@ if __name__ == '__main__':
   # model.add(Dropout(dropout=0.1))
   # model.add(Dense(10, (96,), name='dense2', opt='Adam', opt_kwds={}))
   model.add(Input((28, 28)))
-  model.add(Conv(input_shape=(28, 28), filter_shape=(3, 3), filter_num=32, opt='SGD', opt_kwds={}))
-  model.add(Sigmoid())
-  model.add(Dropout(0.4))
-  # model.add(Pooling(input_shape=(28, 28), channel=32, pool_shape=(2, 2)))
-  # model.add(Dropout(0.4))
-  model.add(Dense(10, (32,28,28), opt='SGD', opt_kwds={}))
+  model.add(Conv(input_shape=(28, 28), filter_shape=(3, 3), filter_num=32, opt='Adam', opt_kwds={}))
+  model.add(ReLU())
+  model.add(Pooling(input_shape=(28, 28), channel=32, pool_shape=(2, 2)))
+  model.add(Flatten())
+  model.add(Dropout(dropout=0.4))
+  model.add(Dense(10, (32,14,14), opt='Adam', opt_kwds={}))
   model.add(Softmax())
 
   # model.load_model('0007')
@@ -660,11 +678,25 @@ if __name__ == '__main__':
   if run_name != '':
     logger.info(run_name)
     logger.info(run_msg)
-    logger.info(f'loss: {np.nanmin(history["loss"])}.')
+    # logger.info(f'loss: {np.nanmin(history["loss"])}.')
     logger.info(f'val_loss: {val_entropy}')
     logger.info(f'val_acc: {accuracy(test_y, pred_y)}')
     logger.info('')
   else:
-    print(f'loss: {np.nanmin(history["loss"])}.')
+    # print(f'loss: {np.nanmin(history["loss"])}.')
     print(f'val_loss {val_entropy}')
-    print(f'val_acc {model.accuracy(test_y, pred_y)}')
+    print(f'val_acc {accuracy(test_y, pred_y)}')
+
+  figure = plt.figure()
+  plt.plot(history['loss'], label='loss')
+  if 'val_loss' in history:
+    plt.plot(history['val_loss'], label='val_loss')
+  plt.legend()
+  plt.show()
+
+  figure = plt.figure()
+  plt.plot(history['acc'], label='acc')
+  if 'val_acc' in history:
+    plt.plot(history['val_acc'], label='val_acc')
+  plt.legend()
+  plt.show()

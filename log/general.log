@@ -180,3 +180,26 @@ best entropy for train is 0.014587184540053023.
 entropy for test is 0.0742969086788843
 accuracy score for test is 0.9845
 
+0010
+sgd sig drop 100
+loss: 0.2624881947020829.
+val_loss: 0.7624037948631636
+val_acc: 0.798
+
+0010
+sgd sig drop 100 正規化なし
+loss: 0.043500314106564804.
+val_loss: 0.056693716536022336
+val_acc: 0.9832
+
+0011
+sgd relu 100 正規化
+loss: 0.10801965512377755.
+val_loss: 0.08461543521628419
+val_acc: 0.9757
+
+0012
+adam relu 正規化
+val_loss: 0.05536069012690472
+val_acc: 0.9869
+
