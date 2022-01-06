@@ -213,3 +213,28 @@ only drop adam normalization
 val_loss: 0.06600084026443392
 val_acc: 0.9831
 
+0014
+ドロップアウトのみ 正規化なし
+val_loss: 0.15303651401342616
+val_acc: 0.983
+
+0012
+adam relu pool normalization filter32
+val_loss: 0.14367186962747217
+val_acc: 0.9815
+
+0016
+rleu pool 5*5filter 20ep
+val_loss: 0.09859023092090717
+val_acc: 0.984
+
+0016
+rleu pool adam 5*5filter 20ep
+val_loss: 0.03594126494229131
+val_acc: 0.989
+
+0016
+relu pool adam 5*5filter 20~40ep
+val_loss: 0.040498450595022155
+val_acc: 0.989
+
