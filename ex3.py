@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 random.seed(71)
 
-class Model():
+class Model:
   def __init__(self) -> None:
     # モデルのアーキテクチャを作成
     self.units = 32
@@ -86,6 +86,13 @@ class Model():
         tr_x, tr_y = self.preprocessing(train_x, train_y)
         entropies.append(self.train_batch(tr_x, tr_y, lr))
       print(f'Epoch {i+1} end! Cross entroppy is {sum(entropies)/len(entropies)}.')
+  
+  def save_model(self, name):
+    np.savez(f'model/{name}', w1=self.w1, b1=self.b1, w2=self.w2, b2=self.b2)
+
+  def load_model(self, name):
+    model = np.load(f'model/{name}.npz')
+    self.w1, self.b1, self.w2, self.b2 = model['w1'], model['b1'], model['w2'], model['b2']
 
 
 if __name__ == '__main__': 
