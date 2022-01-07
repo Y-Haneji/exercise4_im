@@ -238,3 +238,18 @@ relu pool adam 5*5filter 20~40ep
 val_loss: 0.040498450595022155
 val_acc: 0.989
 
+0017
+relu 4*4pool adam 3*3filter normal 29ep
+val_loss: 0.050081567595503654
+val_acc: 0.984
+
+0012
+relu pool adam normalization 3*3filter32 2*2pool
+val_loss: 0.04872056639367633
+val_acc: 0.9846
+
+0012
+relu adam 3*3filter 2*2pool normalization 40ep
+val_loss: 0.04776625904834566
+val_acc: 0.9854
+

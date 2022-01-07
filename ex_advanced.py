@@ -165,12 +165,8 @@ class Input(Layer):
 
 
 class Dense(Layer):
-  def __init__(self, units: int, input_shape: tuple, name: str='dense', opt: str='SGD', opt_kwds: dict={}):
+  def __init__(self, units: int, input_size: int, name: str='dense', opt: str='SGD', opt_kwds: dict={}):
     self.units = units
-    self.input_shape = input_shape
-    input_size = 1
-    for size in input_shape:
-      input_size *= size
 
     self.w = random.normal(loc=0, scale=np.sqrt(1/input_size), size=input_size*units).reshape(units, input_size)
     self.b = random.normal(loc=0, scale=np.sqrt(1/input_size), size=units)
@@ -584,7 +580,7 @@ class Model:
     history = dict(zip(['weight', 'loss', 'acc', 'val_loss', 'val_acc'], list(zip(*history))))
     return history
 
-  def predict(self, test_x, test_y=None, valid=False):
+  def predict(self, test_x, test_y=None, valid=False, postprocess=True):
     '''
     train_x: テストデータの特徴量
     test_y(option): テストデータのラベル
@@ -602,7 +598,9 @@ class Model:
             flag_input = False
           x = layer.forward(x, self.batch_size, self.mode)
         pred_y.append(self.layers[-1].y)
-      pred_y = self.postprocessing(np.array(pred_y))
+      pred_y = np.array(pred_y)
+      if postprocess:
+        pred_y = self.postprocessing(pred_y)
       return pred_y
     elif valid == True:
       test_y = to_one_hot_vector(test_y)
@@ -617,7 +615,8 @@ class Model:
         pred_y.append(self.layers[-1].y.flatten())
       pred_y = np.array(pred_y)
       entropy = cross_entropy(test_y, pred_y)
-      pred_y = self.postprocessing(pred_y)
+      if postprocess:
+        pred_y = self.postprocessing(pred_y)
       return pred_y, entropy
     else:
       raise ValueError(f'please set bool not {valid} for valid.')
@@ -663,22 +662,22 @@ if __name__ == '__main__':
 
   model = Model(mode='train')
   # model.add(Input((28*28,)))
-  # model.add(Dense(96, (28*28,), name='dense1', opt='Adam', opt_kwds={}))
+  # model.add(Dense(96, (28*28,), name='dense1', opt='SGD', opt_kwds={}))
   # model.add(Sigmoid())
   # model.add(ReLU())
   # model.add(BatchNormalization(96))
   # model.add(Dropout(dropout=0.1))
-  # model.add(Dense(10, (96,), name='dense2', opt='Adam', opt_kwds={}))
+  # model.add(Dense(10, (96,), name='dense2', opt='SGD', opt_kwds={}))
   model.add(Input((28, 28)))
-  model.add(Conv(input_shape=(28, 28), filter_shape=(5, 5), filter_num=32, opt='Adam', opt_kwds={}))
+  model.add(Conv(input_shape=(28, 28), filter_shape=(3, 3), filter_num=32, opt='Adam', opt_kwds={}))
   model.add(ReLU())
   model.add(Pooling(input_shape=(28, 28), channel=32, pool_shape=(2, 2)))
   model.add(Flatten())
   model.add(Dropout(dropout=0.4))
-  model.add(Dense(10, (32,14,14), opt='Adam', opt_kwds={}))
+  model.add(Dense(10, 14*14*32, opt='Adam', opt_kwds={}))
   model.add(Softmax())
 
-  model.load_model('0016')
+  model.load_model('0012')
   history = model.train(train_x, train_y, test_x, test_y, valid=1, epochs=20)
   model.load_best(history)
   if run_name != '':
@@ -691,12 +690,10 @@ if __name__ == '__main__':
   if run_name != '':
     logger.info(run_name)
     logger.info(run_msg)
-    # logger.info(f'loss: {np.nanmin(history["loss"])}.')
     logger.info(f'val_loss: {val_entropy}')
     logger.info(f'val_acc: {accuracy(test_y, pred_y)}')
     logger.info('')
   else:
-    # print(f'loss: {np.nanmin(history["loss"])}.')
     print(f'val_loss {val_entropy}')
     print(f'val_acc {accuracy(test_y, pred_y)}')
 
