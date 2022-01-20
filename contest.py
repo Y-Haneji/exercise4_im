@@ -14,7 +14,7 @@ if __name__ == '__main__':
   model.add(Dropout(dropout=0.4))
   model.add(Dense(10, 14*14*32, opt='Adam', opt_kwds={}))
   model.add(Softmax())
-  model.load_model('0012')
+  model.load_model('0020')
   Y = model.predict(X, postprocess=False)
   print(Y)
 
@@ -27,7 +27,7 @@ if __name__ == '__main__':
   model2.add(Dropout(dropout=0.4))
   model2.add(Dense(10, 14*14*32, opt='Adam', opt_kwds={}))
   model2.add(Softmax())
-  model2.load_model('0016')
+  model2.load_model('0022')
   Y2 = model2.predict(X, postprocess=False)
   print(Y2)
 
@@ -40,7 +40,7 @@ if __name__ == '__main__':
   model3.add(Dropout(dropout=0.4))
   model3.add(Dense(10, 7*7*32, opt='Adam', opt_kwds={}))
   model3.add(Softmax())
-  model3.load_model('0017')
+  model3.load_model('0021')
   Y3 = model3.predict(X, postprocess=False)
   print(Y3)
 
