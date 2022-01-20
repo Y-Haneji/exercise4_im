@@ -1,9 +1,9 @@
 import pickle
 
-import matplotlib.pyplot as plt
-import numpy as np
+# import matplotlib.pyplot as plt
+# import numpy as np
 import tensorflow as tf
-from sklearn.metrics import accuracy_score, confusion_matrix
+# from sklearn.metrics import accuracy_score, confusion_matrix
 from tensorflow import keras
 from tensorflow.keras import datasets, layers, models
 
@@ -63,6 +63,8 @@ result = model.fit(X,Y,batch_size=batch_size, epochs=epochs, validation_data=(Xt
 history = result.history
 
 if run_name != 'keras_':
+  model.save(f'model/{run_name}.h5')
+  
   with open(f'history/{run_name}_history.dump', 'wb') as f:
     pickle.dump(history, f)
   
@@ -81,14 +83,14 @@ else:
   print(f'acc: {history["acc"][-1]}')
   print(f'val_acc: {history["val_acc"][-1]}')
 
-fig = plt.figure()
-plt.plot(history['loss'], label='loss')
-plt.plot(history['val_loss'], label='val_loss')
-plt.legend()
-plt.show()
+# fig = plt.figure()
+# plt.plot(history['loss'], label='loss')
+# plt.plot(history['val_loss'], label='val_loss')
+# plt.legend()
+# plt.show()
 
-fig = plt.figure()
-plt.plot(history['acc'], label='acc')
-plt.plot(history['val_acc'], label='val_acc')
-plt.legend()
-plt.show()
+# fig = plt.figure()
+# plt.plot(history['acc'], label='acc')
+# plt.plot(history['val_acc'], label='val_acc')
+# plt.legend()
+# plt.show()
