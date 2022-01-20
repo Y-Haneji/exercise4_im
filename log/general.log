@@ -253,3 +253,18 @@ relu adam 3*3filter 2*2pool normalization 40ep
 val_loss: 0.04776625904834566
 val_acc: 0.9854
 
+0020
+augmentation 3*3filter 2*2pool
+val_loss: 0.04286774003626688
+val_acc: 0.988
+
+0021
+augmentation 3*3filter 4*4pool
+val_loss: 0.053216668546551556
+val_acc: 0.9846
+
+0022
+augmentation 5*5filter 2*2pool
+val_loss: 0.032012579818754175
+val_acc: 0.99
+

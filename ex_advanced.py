@@ -2,6 +2,7 @@ import math
 import pickle
 import sys
 
+from scipy.ndimage.interpolation import shift
 import matplotlib.pyplot as plt
 import mnist
 import numpy as np
@@ -453,6 +454,11 @@ def moving_average_curve(wave, window: int=2):
   return mac
 
 
+def shift_image(image, dx, dy):
+  image = shift(image, (dx, dy))
+  return image
+
+
 class Model:
   def __init__(self, mode = 'train') -> None:
     # モデルのアーキテクチャを作成
@@ -659,6 +665,17 @@ if __name__ == '__main__':
   # 正規化
   train_x = train_x.astype('float32')/255.0
   test_x = test_x.astype('float32')/255.0
+  # データ拡張
+  augmented_train_x = []
+  augmented_train_y = []
+  for img, label in tqdm(zip(train_x, train_y)):
+    augmented_train_x.append(img)
+    augmented_train_y.append(label)
+    for dx, dy in ((-2,0), (2,0), (0,-2), (0,2)):
+      augmented_train_x.append(shift_image(img, dx, dy))
+      augmented_train_y.append(label)
+  train_x = np.array(augmented_train_x)
+  train_y = np.array(augmented_train_y)
 
   model = Model(mode='train')
   # model.add(Input((28*28,)))
@@ -669,7 +686,7 @@ if __name__ == '__main__':
   # model.add(Dropout(dropout=0.1))
   # model.add(Dense(10, (96,), name='dense2', opt='SGD', opt_kwds={}))
   model.add(Input((28, 28)))
-  model.add(Conv(input_shape=(28, 28), filter_shape=(3, 3), filter_num=32, opt='Adam', opt_kwds={}))
+  model.add(Conv(input_shape=(28, 28), filter_shape=(5, 5), filter_num=32, opt='Adam', opt_kwds={}))
   model.add(ReLU())
   model.add(Pooling(input_shape=(28, 28), channel=32, pool_shape=(2, 2)))
   model.add(Flatten())
@@ -677,8 +694,8 @@ if __name__ == '__main__':
   model.add(Dense(10, 14*14*32, opt='Adam', opt_kwds={}))
   model.add(Softmax())
 
-  model.load_model('0012')
-  history = model.train(train_x, train_y, test_x, test_y, valid=1, epochs=20)
+  # model.load_model('0012')
+  history = model.train(train_x, train_y, test_x, test_y, valid=1, epochs=30)
   model.load_best(history)
   if run_name != '':
     model.save_history(run_name, history)
