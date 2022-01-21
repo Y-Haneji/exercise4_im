@@ -7,13 +7,13 @@ import matplotlib.pyplot as plt
 import mnist
 import numpy as np
 from numpy import random
-from sklearn.metrics import accuracy_score
 from tqdm import tqdm
 
 from logger import Logger
 
 random.seed(71)
 
+# --- オプティマイザ ---
 class SGD:
   def __init__(self, lr: float=0.01):
     self.lr = lr
@@ -128,6 +128,7 @@ def get_opt(opt: str, *args, **kwds):
 
   return optimizer
 
+# --- レイヤ ---
 class Layer:
   def __init__(self, *args, **kwds):
     pass
@@ -459,6 +460,7 @@ def shift_image(image, dx, dy):
   return image
 
 
+# --- モデル ---
 class Model:
   def __init__(self, mode = 'train') -> None:
     # モデルのアーキテクチャを作成
@@ -651,12 +653,14 @@ class Model:
       pickle.dump(history, f)
 
 
+# --- 実行 ---
 if __name__ == '__main__': 
   print('please input model name. (ex: 0001)')
   run_name = input()
   print('please input message about this run.')
   run_msg = input()
 
+  # --- データをロード ---
   logger = Logger()
   train_x = mnist.download_and_parse_mnist_file('train-images-idx3-ubyte.gz')
   train_y = mnist.download_and_parse_mnist_file("train-labels-idx1-ubyte.gz")
@@ -677,14 +681,8 @@ if __name__ == '__main__':
   train_x = np.array(augmented_train_x)
   train_y = np.array(augmented_train_y)
 
+  # --- モデルを定義 ---
   model = Model(mode='train')
-  # model.add(Input((28*28,)))
-  # model.add(Dense(96, (28*28,), name='dense1', opt='SGD', opt_kwds={}))
-  # model.add(Sigmoid())
-  # model.add(ReLU())
-  # model.add(BatchNormalization(96))
-  # model.add(Dropout(dropout=0.1))
-  # model.add(Dense(10, (96,), name='dense2', opt='SGD', opt_kwds={}))
   model.add(Input((28, 28)))
   model.add(Conv(input_shape=(28, 28), filter_shape=(5, 5), filter_num=32, opt='Adam', opt_kwds={}))
   model.add(ReLU())
@@ -694,6 +692,7 @@ if __name__ == '__main__':
   model.add(Dense(10, 14*14*32, opt='Adam', opt_kwds={}))
   model.add(Softmax())
 
+  # --- 訓練 ---
   # model.load_model('0012')
   history = model.train(train_x, train_y, test_x, test_y, valid=1, epochs=30)
   model.load_best(history)
@@ -704,6 +703,7 @@ if __name__ == '__main__':
   pred_y, val_entropy = model.predict(test_x, test_y, valid=True)
   print(pred_y)
 
+  # --- ログ出力 ---
   if run_name != '':
     logger.info(run_name)
     logger.info(run_msg)
