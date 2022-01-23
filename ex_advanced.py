@@ -159,7 +159,7 @@ class Input(Layer):
   
   def forward(self, x, batch_size=100, mode='train'):
     self.x = x
-    if self.output_dim == 1:
+    if self.output_dim == 1:  # 1次元化
       self.y = x.reshape((batch_size,) + self.output_shape).T
     else:  # 画像データをそのまま扱う場合を想定
       self.y = x.reshape((batch_size,) + self.output_shape)
@@ -463,7 +463,6 @@ def shift_image(image, dx, dy):
 # --- モデル ---
 class Model:
   def __init__(self, mode = 'train') -> None:
-    # モデルのアーキテクチャを作成
     self.batch_size = 100
     if mode not in ['train', 'inference']:
       raise ValueError('mode is train or inference.')
@@ -481,9 +480,6 @@ class Model:
     idx = random.randint(0, len(train_y), self.batch_size)
     tr_x = train_x[idx]
     tr_y = train_y[idx]
-    # l = [[1 if i == label else 0 for i in range(10)] for label in train_y[idx]]
-    # tr_y = np.zeros((len(l), len(l[0])))
-    # tr_y[:] = l
     return tr_x, tr_y # tr_x: (bs, 28, 28)
 
   def postprocessing(self, input_vec):  # ミニバッチに対応、bs*class
@@ -670,16 +666,16 @@ if __name__ == '__main__':
   train_x = train_x.astype('float32')/255.0
   test_x = test_x.astype('float32')/255.0
   # データ拡張
-  augmented_train_x = []
-  augmented_train_y = []
-  for img, label in tqdm(zip(train_x, train_y)):
-    augmented_train_x.append(img)
-    augmented_train_y.append(label)
-    for dx, dy in ((-2,0), (2,0), (0,-2), (0,2)):
-      augmented_train_x.append(shift_image(img, dx, dy))
-      augmented_train_y.append(label)
-  train_x = np.array(augmented_train_x)
-  train_y = np.array(augmented_train_y)
+  # augmented_train_x = []
+  # augmented_train_y = []
+  # for img, label in tqdm(zip(train_x, train_y)):
+  #   augmented_train_x.append(img)
+  #   augmented_train_y.append(label)
+  #   for dx, dy in ((-2,0), (2,0), (0,-2), (0,2)):
+  #     augmented_train_x.append(shift_image(img, dx, dy))
+  #     augmented_train_y.append(label)
+  # train_x = np.array(augmented_train_x)
+  # train_y = np.array(augmented_train_y)
 
   # --- モデルを定義 ---
   model = Model(mode='train')
@@ -694,12 +690,13 @@ if __name__ == '__main__':
 
   # --- 訓練 ---
   # model.load_model('0012')
-  history = model.train(train_x, train_y, test_x, test_y, valid=1, epochs=30)
+  history = model.train(train_x, train_y, test_x, test_y, valid=1, epochs=5)
   model.load_best(history)
   if run_name != '':
     model.save_history(run_name, history)
     model.save_model(run_name)
 
+  # --- 推論 ---
   pred_y, val_entropy = model.predict(test_x, test_y, valid=True)
   print(pred_y)
 

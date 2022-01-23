@@ -268,3 +268,13 @@ augmentation 5*5filter 2*2pool
 val_loss: 0.032012579818754175
 val_acc: 0.99
 
+0022
+5*5filter 2*2pool
+val_loss: 0.032012579818754175
+val_acc: 0.99
+
+9999
+レポート用
+val_loss: 0.04821959375976248
+val_acc: 0.9835
+
