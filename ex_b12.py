@@ -46,7 +46,9 @@ model.add(layers.MaxPool2D(pool_size=(2,2)))
 model.add(layers.Conv2D(128, (3,3), activation='relu', padding='same'))
 model.add(layers.MaxPool2D(pool_size=(2,2)))
 model.add(layers.Flatten())
+model.add(layers.Dropout(0.5))
 model.add(layers.Dense(512, activation='relu'))
+model.add(layers.Dropout(0.5))
 model.add(layers.Dense(num_classes, activation=
 'softmax'))
 
@@ -72,10 +74,10 @@ if run_name != 'keras_':
   logger.info(run_name)
   logger.info(run_msg)
   # TODO: どの履歴を取り出すか要検討
-  logger.info(f'loss: {history["loss"][-1]}')
-  logger.info(f'val_loss: {history["val_loss"][-1]}')
-  logger.info(f'acc: {history["acc"][-1]}')
-  logger.info(f'val_acc: {history["val_acc"][-1]}')
+  logger.info(f'loss: {history["loss"][-1]:.5f}')
+  logger.info(f'val_loss: {history["val_loss"][-1]:.5f}')
+  logger.info(f'acc: {history["acc"][-1]:.3f}')
+  logger.info(f'val_acc: {history["val_acc"][-1]:.3f}')
   logger.info('')
 else:
   print(f'loss: {history["loss"][-1]}')
